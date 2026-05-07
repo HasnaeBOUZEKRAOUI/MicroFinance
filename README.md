@@ -1,4 +1,4 @@
-# MicroTrack
+# MicroFinance
 
 MicroTrack est une solution logicielle conçue pour optimiser le cycle de vie du microcrédit. Elle agit comme une extension intelligente du système PowerCARD, permettant de gérer l'enrôlement des prospects, l'octroi de crédits sécurisés par IA et le suivi rigoureux du recouvrement.
 
