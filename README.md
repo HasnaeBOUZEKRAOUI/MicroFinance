@@ -1,48 +1,266 @@
 # MicroFinance
 
-MicroTrack est une solution logicielle conçue pour optimiser le cycle de vie du microcrédit. Elle agit comme une extension intelligente du système PowerCARD, permettant de gérer l'enrôlement des prospects, l'octroi de crédits sécurisés par IA et le suivi rigoureux du recouvrement.
+MicroTrack est une solution logicielle conçue pour optimiser le cycle de vie du microcrédit. Elle agit comme une plateforme intelligente permettant de gérer l’enrôlement des prospects, l’octroi de crédits et le suivi du recouvrement.
 
-## Table des matières
+---
+
+# Table des matières
+
 1. Description du projet
 2. Fonctionnalités principales
 3. Acteurs du système
 4. Architecture technique
 5. Installation et configuration
+6. Structure du projet
 
-## 1. Description du projet
-Le projet vise à moderniser les institutions de microfinance en automatisant les processus de décision. MicroTrack réduit les risques opérationnels grâce à une évaluation précise des dossiers et offre une vision consolidée des données clients.
+---
 
-## 2. Fonctionnalités principales
-- Gestion des Prospects : Création de fiches KYC et simulation de prêts.
-- Gestion des Clients : Passage du statut prospect à client après décaissement et Vision 360.
-- Scoring par Intelligence Artificielle : Analyse prédictive du risque de défaut lors de la simulation et de l'octroi.
-- Suivi du Recouvrement : Monitoring des échéances, identification des retards et gestion des impayés.
-- Transfert de Portefeuille : Réattribution fluide de clients entre agents de crédit.
+# 1. Description du projet
 
-## 3. Acteurs du système
-- Agent de Crédit : Responsable de la prospection, des simulations et du suivi de terrain.
-- Analyste de Risque : Valide les demandes de crédit en s'appuyant sur les scores fournis par l'IA.
-- Caissier : Gère les flux financiers (décaissements et encaissements des remboursements).
+Le projet vise à moderniser les institutions de microfinance en automatisant les processus de gestion des crédits et du suivi client.
 
-## 4. Architecture technique
-- Backend : Langage Java avec le framework Spring Boot.
-- Frontend : Framework Angular pour une interface utilisateur réactive.
-- Base de données : Intégration avec le système central PowerCARD (PostgreSQL/Oracle).
-- Moteur IA : Service dédié à l'analyse de données historiques et au scoring.
+MicroTrack permet :
+- La gestion des prospects et clients
+- Le suivi des demandes de crédit
+- Le contrôle des remboursements
+- La gestion des utilisateurs et des rôles
+- L’analyse et le suivi des opérations financières
 
-## 5. Installation et configuration
-### Prérequis
-- Java JDK 17 ou supérieur
-- Node.js et Angular CLI
-- Maven
+---
 
-### Étapes
-1. Cloner le dépôt : git clone https://github.com/HasnaeBOUZEKRAOUI/MicroFinance.git
-2. Configuration du backend : 
-   - Naviguer vers le dossier backend.
-   - Modifier le fichier application.properties pour la connexion DB.
-   - Exécuter : mvn clean install puis mvn spring-boot:run
-3. Configuration du frontend :
-   - Naviguer vers le dossier frontend.
-   - Exécuter : npm install
-   - Lancer l'application : ng serve
+# 2. Fonctionnalités principales
+
+## Gestion des Prospects
+- Création des fiches clients
+- Collecte des informations KYC
+- Simulation des crédits
+
+## Gestion des Clients
+- Transformation prospect → client
+- Consultation des informations clients
+- Vision 360 du client
+
+## Gestion des Crédits
+- Création des demandes de crédit
+- Validation des crédits
+- Historique des opérations
+
+## Suivi du Recouvrement
+- Gestion des échéances
+- Détection des retards
+- Gestion des impayés
+
+## Administration
+- Gestion des comptes utilisateurs
+- Gestion des rôles et permissions
+
+---
+
+# 3. Acteurs du système
+
+## Agent de Crédit
+- Création des prospects
+- Gestion des clients
+- Suivi des remboursements
+
+## Manager
+- Validation des demandes de crédit
+- Consultation des statistiques
+
+## Administrateur
+- Gestion des utilisateurs
+- Gestion des rôles
+- Configuration du système
+
+---
+
+# 4. Architecture technique
+
+## Frontend
+- React JS
+- Tailwind CSS
+- React Router DOM
+- Axios
+
+## Backend
+- Laravel
+- Laravel Sanctum (authentification API)
+- REST API
+
+## Base de données
+- MySQL
+
+---
+
+# 5. Installation et configuration
+
+## Prérequis
+
+- PHP >= 8.2
+- Composer
+- Node.js
+- MySQL
+- Git
+
+---
+
+# Cloner le projet
+
+```bash
+git clone https://github.com/HasnaeBOUZEKRAOUI/MicroFinance.git
+```
+
+---
+
+# Configuration du Backend (Laravel)
+
+## Accéder au dossier backend
+
+```bash
+cd backend
+```
+
+## Installer les dépendances
+
+```bash
+composer install
+```
+
+## Copier le fichier .env
+
+```bash
+cp .env.example .env
+```
+
+## Générer la clé Laravel
+
+```bash
+php artisan key:generate
+```
+
+## Configurer la base de données
+
+Modifier le fichier `.env` :
+
+```env
+DB_DATABASE=microfinance
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+## Exécuter les migrations
+
+```bash
+php artisan migrate
+```
+
+## Lancer le serveur Laravel
+
+```bash
+php artisan serve
+```
+
+Le backend sera disponible sur :
+
+```txt
+http://127.0.0.1:8000
+```
+
+---
+
+# Configuration du Frontend (React)
+
+## Accéder au dossier frontend
+
+```bash
+cd frontend
+```
+
+## Installer les dépendances
+
+```bash
+npm install
+```
+
+## Installer React Router DOM
+
+```bash
+npm install react-router-dom
+```
+
+## Installer Axios
+
+```bash
+npm install axios
+```
+
+## Lancer l’application
+
+```bash
+npm run dev
+```
+
+Le frontend sera disponible sur :
+
+```txt
+http://localhost:5173
+```
+
+---
+
+# 6. Structure du projet
+
+```txt
+MicroFinance/
+│
+├── backend/
+│   ├── app/
+│   ├── routes/
+│   ├── database/
+│   └── ...
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── layouts/
+│   │   ├── services/
+│   │   └── router/
+│   └── ...
+│
+└── README.md
+```
+
+---
+
+# API REST
+
+## Exemple d’API
+
+| Méthode | Endpoint | Description |
+|----------|-----------|-------------|
+| GET | /api/clients | Liste des clients |
+| POST | /api/clients | Ajouter un client |
+| PUT | /api/clients/{id} | Modifier un client |
+| DELETE | /api/clients/{id} | Supprimer un client |
+
+---
+
+# Technologies utilisées
+
+## Frontend
+- React JS
+- Tailwind CSS
+- Axios
+- React Router DOM
+
+## Backend
+- Laravel
+- MySQL
+- Laravel Sanctum
+
+---
+
+# Auteur
+
+Projet réalisé par Hasnae Bouzekraoui.
