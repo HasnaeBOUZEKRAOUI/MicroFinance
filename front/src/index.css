@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  /* Couleurs de Surface (Fonds, bordures, textes secondaires) */
+  --color-surface-50: #f7f8f7;
+  --color-surface-100: #eef0ee;
+  --color-surface-200: #e2e5e2;
+  --color-surface-800: #1c211c;
+  --color-surface-900: #111511;
+
+  /* Couleurs Brand (Identité MicroFinance) */
+  --color-brand-50: #edfaf4;
+  --color-brand-100: #d1f2e1;
+  --color-brand-500: #1a9d74;
+  --color-brand-600: #11805e;
+  --color-brand-700: #0d6349;
+
+  /* Typographies */
+  --font-display: "Syne", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Effets visuels */
+  --shadow-modal: 0 20px 60px -10px rgb(0 0 0 / 0.12);
+}
+
+@layer components {
+  .label {
+    @apply block text-sm font-medium text-surface-800/70 mb-1.5 ml-1;
+  }
+  
+  .input {
+    @apply w-full h-11 px-4 rounded-2xl border border-surface-200 bg-surface-50 
+           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 
+           transition-all duration-200 text-surface-900 placeholder:text-surface-800/30;
+  }
+
+  .btn-primary {
+    @apply flex items-center gap-2 h-11 px-6 rounded-2xl bg-brand-600 text-white 
+           font-semibold hover:bg-brand-700 active:scale-[0.98] transition-all 
+           disabled:opacity-50 disabled:pointer-events-none shadow-sm;
+  }
+}
