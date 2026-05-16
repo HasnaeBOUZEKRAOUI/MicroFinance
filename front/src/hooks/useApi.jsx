@@ -26,9 +26,12 @@ export function useApi(apiFn, deps = [], immediate = true) {
     }
   }, deps) // eslint-disable-line
 
+  // CORRECTION ICI : On ajoute 'execute' dans les dépendances du useEffect
+  // Ainsi, dès que la fonction 'execute' change (par exemple quand la page change), 
+  // le fetch se déclenche automatiquement.
   useEffect(() => {
     if (immediate) execute()
-  }, [immediate]) // eslint-disable-line
+  }, [immediate, execute]) 
 
   return { data, loading, error, execute, setData }
 }

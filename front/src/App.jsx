@@ -9,6 +9,7 @@ import PaiementsPage from './pages/paiements/PaiementsPage';
 import PretsPage from './pages/prets/PretsPage';
 import EmployesPage from './pages/employes/EmployesPage';
 import Vision360Page from './pages/Vision360Page';
+import ProduitsPage from './pages/produits/ProduitsPage';
 
 // Composants temporaires pour les tests
 const Dashboard = () => <div className="p-8"><h1>Tableau de Bord Microfinance</h1></div>;
@@ -39,7 +40,9 @@ function App() {
 
               {/* Routes protégées : si pas d'utilisateur, redirection vers login */}
               <Route path="/vision360Page" element={user ? <Vision360Page /> : <Navigate to="/login" />} />
-              <Route path="/clients/:id" element={user ? <Vision360Page /> : <Navigate to="/login" />}/>              <Route path="/employes"  element={user ? <EmployesPage /> : <Navigate to="/login" />} />
+              <Route path="/clients/:id" element={user ? <Vision360Page /> : <Navigate to="/login" />}/>             
+               <Route path="/employes"  element={user ? <EmployesPage /> : <Navigate to="/login" />} />
+               <Route path="/produits"  element={user ? <ProduitsPage /> : <Navigate to="/login" />} />
               <Route path="/clients"   element={user ? <ClientsPage />   : <Navigate to="/login" />} />
               <Route path="/prets"     element={user ? <PretsPage />     : <Navigate to="/login" />} />
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />

@@ -8,14 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Client extends Model
 {
-    use SoftDeletes;
+    use HasFactory; 
 
     protected $fillable = [
         // Identité
-        'personne_id', 'employe_id',
+        'personne_id', 
+    'employe_id',
         'nil', 'code_client', 'est_vip',
         'type_piece_identite', 'numero_piece_identite',
         'date_expiration_piece',
@@ -55,13 +57,22 @@ class Client extends Model
     protected static function boot(): void
     {
         parent::boot();
+    
         static::creating(function (Client $client) {
+            // Génération du Code Client (Déjà présent)
             if (empty($client->code_client)) {
                 $client->code_client = 'CLT-' . strtoupper(Str::random(8));
             }
+    
+            // Génération du NIL (AUTO-GÉNÉRÉ ICI)
+            if (empty($client->nil)) {
+                // Exemple : NIL + Timestamp actuel + Aléatoire 4 chiffres
+                // Très efficace pour garantir l'unicité
+                $client->nil = 'NIL' . date('ymd') . strtoupper(Str::random(4));
+                // Résultat : NIL260515A7B2
+            }
         });
     }
-
     // ── Relations ─────────────────────────────────────────────────
     public function personne(): BelongsTo
     {

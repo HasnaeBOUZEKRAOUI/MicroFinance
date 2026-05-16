@@ -63,6 +63,9 @@ export const alertesApi = {
 
 // ── Produits crédit ───────────────────────────────
 export const produitsApi = {
-  list: (params) => api.get('/produit-credits', { params }),
-  get:  (id)     => api.get(`/produit-credits/${id}`),
+  list:   (params) => api.get('/produits', { params }),
+  get:    (id)     => api.get(`/produits/${id}`),
+  create: (data)   => api.post('/produits', data),
+  update: (id, d)  => api.put(`/produits/${id}`, d),
+  delete: (id)     => api.delete(`/produits/${id}`),
 }

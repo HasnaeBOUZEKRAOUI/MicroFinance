@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Personne;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -44,20 +47,23 @@ class ClientController extends Controller
 
         return response()->json($query->paginate(20));
     }
-
     public function store(Request $request): JsonResponse
     {
+        // 1. On ajoute la validation des champs appartenant à la table "personnes"
         $validated = $request->validate([
-            // Identité
-            'personne_id'             => 'required|exists:personnes,id',
-            'employe_id'              => 'nullable|exists:employes,id',
-            'nil'                     => 'required|string|unique:clients,nil',
+            // Champs obligatoires pour la table PERSONNES
+            'nom'                     => 'required|string|max:100',
+            'prenom'                  => 'required|string|max:100',
+            'email'                   => 'required|email|unique:personnes,email',
+            'telephone'               => 'nullable|string|max:20',
+            'date_naissance'          => 'required|date',
+    
+            // Champs de la table CLIENTS
+            'employe_id'              => 'required|exists:employes,id',
             'est_vip'                 => 'nullable|boolean',
             'type_piece_identite'     => 'required|string|max:50',
             'numero_piece_identite'   => 'required|string|unique:clients,numero_piece_identite',
             'date_expiration_piece'   => 'nullable|date',
-
-            // Informations clients
             'categorie_client'        => 'nullable|string|max:100',
             'titre'                   => 'nullable|in:M.,Mme,Mlle,Dr,Pr',
             'fonction'                => 'nullable|string|max:100',
@@ -72,8 +78,6 @@ class ClientController extends Controller
             'nombre_enfants'          => 'nullable|integer|min:0',
             'nom_conjoint'            => 'nullable|string|max:100',
             'prenom_conjoint'         => 'nullable|string|max:100',
-
-            // Adresse
             'telephone_secondaire'    => 'nullable|string|max:20',
             'email_client'            => 'nullable|email',
             'code_postal'             => 'nullable|string|max:20',
@@ -82,16 +86,49 @@ class ClientController extends Controller
             'ville'                   => 'nullable|string|max:100',
             'pays'                    => 'nullable|string|max:100',
             'coordonnees_gps'         => 'nullable|string|max:50',
-
-            // Crédit
             'nationalite'             => 'required|string|max:100',
             'revenu_mensuel'          => 'required|numeric|min:0',
             'score_eligibilite'       => 'nullable|numeric|min:0|max:100',
         ]);
-
-        $client = Client::create($validated);
-
-        return response()->json($client->load('personne', 'employe'), 201);
+    
+        try {
+            // 2. Utilisation d'une transaction pour la sécurité des données
+            $client = DB::transaction(function () use ($request, $validated) {
+                
+                // 3. Création de l'entrée dans la table "personnes"
+                $personne = Personne::create([
+                    'nom'            => $validated['nom'],
+                    'prenom'         => $validated['prenom'],
+                    'email'          => $validated['email'],
+                    'telephone'      => $validated['telephone'],
+                    'date_naissance' => $validated['date_naissance'],
+                    'date_creation'  => now(),
+                ]);
+    
+                // 4. Préparation des données pour le Client
+                // On récupère toutes les données validées
+                $clientData = $validated;
+                
+                // On injecte l'ID de la personne créée
+                $clientData['personne_id'] = $personne->id;
+                
+                // Génération d'un code client unique
+                $clientData['code_client'] = 'CLT-' . strtoupper(Str::random(8));
+    
+                // 5. Création du Client
+                return Client::create($clientData);
+            });
+    
+            // 6. Retourner le client avec ses relations
+            return response()->json($client->load('personne', 'employe'), 201);
+    
+        } catch (\Exception $e) {
+            // En cas d'erreur, Laravel annulera automatiquement la création de la personne (Rollback)
+            return response()->json([
+                'message' => 'Erreur lors de la création du client',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show(Client $client): JsonResponse

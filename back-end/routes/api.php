@@ -23,6 +23,23 @@ Route::post('auth/login', [AuthController::class, 'login']);
 // ─────────────────────────────────────────────
 // Routes protégées (Sanctum)
 // ─────────────────────────────────────────────
+Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
+    
+    // Gestion des employés (CRUD complet)
+    Route::apiResource('employes', EmployeController::class);
+    
+    // Gestion des produits de crédit
+    Route::get('produits/{id}', [ProduitCreditController::class, 'show']);  // Voir les détails
+    Route::post('produits', [ProduitCreditController::class, 'store']);     // Ajouter
+    Route::put('produits/{id}', [ProduitCreditController::class, 'update']); // Modifier
+    Route::delete('produits/{id}', [ProduitCreditController::class, 'destroy']); // Supprimer
+});
+
+// Route accessible par d'autres rôles (ex: agents de crédit qui ont besoin de voir la liste)
+Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
+    Route::get('produits', [ProduitCreditController::class, 'index']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
 
 
@@ -33,10 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Personnes
     Route::apiResource('personnes', PersonneController::class);
 
-    // Employés
-    Route::get('employes/{employe}/clients',        [EmployeController::class, 'clients']);
-    Route::get('employes/{employe}/demande-credits', [EmployeController::class, 'demandeCredits']);
-    Route::apiResource('employes', EmployeController::class);
+    
 
     // Prospects
     Route::post('prospects/{prospect}/convertir', [ProspectController::class, 'convertir']);

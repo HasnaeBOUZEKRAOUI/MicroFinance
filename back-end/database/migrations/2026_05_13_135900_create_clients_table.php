@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('clients', function (Blueprint $table) {
             // ── CLÉS ET TIMESTAMPS ───────────────────────────────────────
             $table->id();
+            $table->unsignedBigInteger('employe_id')->nullable();
             $table->foreignId('personne_id')->constrained('personnes')->onDelete('cascade');
             $table->timestamps();
 
@@ -77,7 +78,11 @@ return new class extends Migration
             $table->string('pays', 100)->default('Maroc');
             $table->string('coordonnees_gps', 50)->nullable()
                   ->comment('Format : latitude,longitude');
-        });
+            $table->string('nationalite')->nullable();
+            $table->decimal('revenu_mensuel', 15, 2)->nullable();
+            $table->decimal('score_eligibilite', 5, 2)->nullable();
+            $table->boolean('est_sur_liste_noire')->default(false);
+          });
     }
 
     /**

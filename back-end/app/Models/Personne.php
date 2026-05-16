@@ -6,11 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Carbon\Carbon;
-
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Personne extends Model
 {
-    use SoftDeletes;
-
+    use HasFactory;
     protected $fillable = [
         'prenom',
         'nom',

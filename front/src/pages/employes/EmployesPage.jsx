@@ -6,7 +6,7 @@ import { formatDate } from '../../utils/helpers'
 import { PageHeader, Modal, ConfirmDialog, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
 import { UserCheck, Users } from 'lucide-react'
 
-const ROLES = ['ADMIN', 'AGENT_CREDIT', 'CAISSIER', 'DIRECTEUR', 'SUPERVISEUR']
+const ROLES = ['ADMIN', 'AGENT_CREDIT', 'DIRECTEUR']
 
 function EmployeForm({ initial = {}, onSave, loading, error }) {
   const isEdit = !!initial?.id

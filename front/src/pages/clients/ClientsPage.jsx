@@ -9,6 +9,7 @@ import {
   Pagination, Spinner, Empty, ErrorAlert, StatCard
 } from '../../components/ui'
 import { Users, UserCheck, AlertTriangle } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 // ── Constantes ────────────────────────────────────────────────────
 const TITRES          = ['M.', 'Mme', 'Mlle', 'Dr', 'Pr']
@@ -29,8 +30,13 @@ const TABS = [
 ]
 
 const INITIAL_FORM = {
+  nom: '',
+  prenom: '',
+  email: '', // sera mappé vers l'email de la personne
+  telephone: '',
+  date_naissance: '',
   // Identité
-  personne_id: '', employe_id: '', nil: '', est_vip: false,
+   nil: '', est_vip: false,
   type_piece_identite: 'CIN', numero_piece_identite: '',
   date_expiration_piece: '',
   // Infos clients
@@ -64,7 +70,6 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
       {options.map(o => <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>)}
     </select>
   )
-
   return (
     <div>
       {/* Onglets */}
@@ -90,33 +95,67 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
 
         {/* ── Onglet Identité ──────────────────────────────────── */}
         {activeTab === 'identite' && (
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">Identification légale</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">NIL — Numéro d'Identification Légal *</label>
-                <input className={inputClass} value={f.nil} onChange={set('nil')} required placeholder="Unique et obligatoire" />
-              </div>
-              <div>
-                <label className="label">ID Personne *</label>
-                <input className={inputClass} type="number" value={f.personne_id} onChange={set('personne_id')} required />
-              </div>
-              <div>
-                <label className="label">Type de pièce d'identité *</label>
-                {sel('type_piece_identite', PIECES)}
-              </div>
-              <div>
-                <label className="label">N° de pièce *</label>
-                <input className={inputClass} value={f.numero_piece_identite} onChange={set('numero_piece_identite')} required />
-              </div>
-              <div>
-                <label className="label">Date d'expiration</label>
-                <input className={inputClass} type="date" value={f.date_expiration_piece} onChange={set('date_expiration_piece')} />
-              </div>
-              <div>
-                <label className="label">Employé gestionnaire</label>
-                <input className={inputClass} type="number" value={f.employe_id} onChange={set('employe_id')} />
-              </div>
+  <div className="space-y-4">
+    <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">
+      Informations Personnelles
+    </p>
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="label">Prénom *</label>
+        <input className={inputClass} value={f.prenom} onChange={set('prenom')} required />
+      </div>
+      <div>
+        <label className="label">Nom *</label>
+        <input className={inputClass} value={f.nom} onChange={set('nom')} required />
+      </div>
+      <div>
+        <label className="label">Date de naissance *</label>
+        <input className={inputClass} type="date" value={f.date_naissance} onChange={set('date_naissance')} required />
+      </div>
+      <div>
+        <label className="label">Email (Principal) *</label>
+        <input className={inputClass} type="email" value={f.email} onChange={set('email')} required />
+      </div>
+      <div>
+        <label className="label">Téléphone *</label>
+        <input className={inputClass} value={f.telephone} onChange={set('telephone')} placeholder="+212..." />
+      </div>
+    </div>
+
+    <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40 mt-6">
+      Identification légale
+    </p>
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="label">NIL — Numéro d'Identification Légal *</label>
+        <input className={inputClass} value={f.nil} onChange={set('nil')} required placeholder="Unique et obligatoire" />
+      </div>
+      {/* Retirez le champ ID Personne car il sera généré par le backend */}
+      <div>
+        <label className="label">Type de pièce d'identité *</label>
+        {sel('type_piece_identite', PIECES)}
+      </div>
+      <div>
+        <label className="label">N° de pièce *</label>
+        <input className={inputClass} value={f.numero_piece_identite} onChange={set('numero_piece_identite')} required />
+      </div>
+      <div>
+        <label className="label">Date d'expiration</label>
+        <input className={inputClass} type="date" value={f.date_expiration_piece} onChange={set('date_expiration_piece')} />
+      </div>
+   
+      <div>
+            <label className="label">Agent Gestionnaire (ID)</label>
+            <input 
+              className="input bg-surface-50 text-surface-500 cursor-not-allowed font-mono" 
+              value={f.employe_id || ''} 
+              disabled // Désactivé pour empêcher la modification
+              readOnly
+            />
+            <p className="text-[10px] text-brand-600 mt-1 italic">
+              Ce client sera affecté à votre portefeuille agent.
+            </p>
+          </div>
             </div>
             <div className="flex items-center gap-3 mt-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
               <input type="checkbox" id="vip" checked={f.est_vip} onChange={setB('est_vip')} className="w-4 h-4 accent-amber-500" />
@@ -229,6 +268,7 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
 
 // ── Page principale ───────────────────────────────────────────────
 export default function ClientsPage() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [page, setPage]         = useState(1)
   const [search, setSearch]     = useState('')
@@ -245,7 +285,7 @@ export default function ClientsPage() {
   const openEdit   = c => { setSelected(c); setModal('edit') }
   const openDelete = c => { setSelected(c); setModal('delete') }
   const closeModal = () => { setModal(null); setSaveError(''); setSelected(null) }
-
+  const currentEmployeId = JSON.parse(localStorage.getItem('user'))?.employe_id || '';
   const handleSave = async (form) => {
     setSaving(true); setSaveError('')
     try {
@@ -350,7 +390,13 @@ export default function ClientsPage() {
 
       {/* Modals */}
       <Modal open={modal === 'create'} onClose={closeModal} title="Nouveau client — Enrôlement" size="xl">
-        <ClientForm onSave={handleSave} loading={saving} error={saveError} />
+        <ClientForm 
+          onSave={handleSave} 
+          loading={saving} 
+          error={saveError} 
+          // On initialise employe_id avec l'ID de l'agent connecté
+          initial={{ employe_id: user?.id }} 
+        />
       </Modal>
       <Modal open={modal === 'edit'} onClose={closeModal} title="Modifier le client" size="xl">
         <ClientForm initial={selected} onSave={handleSave} loading={saving} error={saveError} />
