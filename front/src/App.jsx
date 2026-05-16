@@ -10,14 +10,9 @@ import PretsPage from './pages/prets/PretsPage';
 import EmployesPage from './pages/employes/EmployesPage';
 import Vision360Page from './pages/Vision360Page';
 import ProduitsPage from './pages/produits/ProduitsPage';
-
+import AlertesPage from './pages/alertes/AlertesPage';
 // Composants temporaires pour les tests
-const Dashboard = () => <div className="p-8"><h1>Tableau de Bord Microfinance</h1></div>;
-const Clients   = () => <div className="p-8"><h1>Gestion des Clients</h1></div>;
-const Prets     = () => <div className="p-8"><h1>Gestion des Prêts</h1></div>;
-const Demandes  = () => <div className="p-8"><h1>Demandes de Crédit</h1></div>;
-const Paiements = () => <div className="p-8"><h1>Suivi des Paiements</h1></div>;
-
+import Dashboard from './pages/dashboards/Dashboard';
 function App() {
   const { user, loading } = useAuth(); // Récupérez l'état de l'utilisateur
 
@@ -39,6 +34,7 @@ function App() {
               <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/vision360Page" />} />
 
               {/* Routes protégées : si pas d'utilisateur, redirection vers login */}
+              <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
               <Route path="/vision360Page" element={user ? <Vision360Page /> : <Navigate to="/login" />} />
               <Route path="/clients/:id" element={user ? <Vision360Page /> : <Navigate to="/login" />}/>             
                <Route path="/employes"  element={user ? <EmployesPage /> : <Navigate to="/login" />} />
@@ -47,7 +43,7 @@ function App() {
               <Route path="/prets"     element={user ? <PretsPage />     : <Navigate to="/login" />} />
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />
               <Route path="/paiements" element={user ? <PaiementsPage /> : <Navigate to="/login" />} />
-
+              <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
               {/* Redirection par défaut */}
               <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
               

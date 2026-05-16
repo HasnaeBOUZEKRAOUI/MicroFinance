@@ -14,7 +14,7 @@ use App\Http\Controllers\api\PretController;
 use App\Http\Controllers\api\EcheanceController;
 use App\Http\Controllers\api\PaiementController;
 use App\Http\Controllers\api\AlerteController;
-
+use App\Http\Controllers\api\DashboardController;
 // ─────────────────────────────────────────────
 // Auth (public)
 // ─────────────────────────────────────────────
@@ -42,6 +42,7 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
 
     // Auth
     Route::post('auth/logout', [AuthController::class, 'logout']);

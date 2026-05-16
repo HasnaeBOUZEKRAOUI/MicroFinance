@@ -1,6 +1,8 @@
 import api from './axios'
 
-
+export const dashboardApi = {
+  getStats: () => api.get('/dashboard/stats'),
+}
 // ── Clients ──────────────────────────────────────
 export const clientsApi = {
   list:    (params) => api.get('/clients', { params }),
