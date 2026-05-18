@@ -23,7 +23,6 @@ class DashboardController extends Controller
                 'total_clients'      => $totalClients,
                 'total_employes'     => $totalEmployes,
                 'demandes_attente'   => $demandesAttente,
-                'encours_credits'    => 1550000, // Valeur statique temporaire
                 'derniers_paiements' => [
                     [
                         'id' => 1,

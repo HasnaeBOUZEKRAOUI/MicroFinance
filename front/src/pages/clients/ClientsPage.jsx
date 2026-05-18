@@ -1,14 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Eye, Pencil, Trash2, ShieldAlert, Star } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, ShieldAlert, Star, Users, UserCheck, AlertTriangle } from 'lucide-react'
 import { clientsApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant } from '../../utils/helpers'
 import {
-  PageHeader, Badge, Modal, ConfirmDialog,
+  PageHeader, Modal, ConfirmDialog,
   Pagination, Spinner, Empty, ErrorAlert, StatCard
 } from '../../components/ui'
-import { Users, UserCheck, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 // ── Constantes ────────────────────────────────────────────────────
@@ -21,7 +20,6 @@ const CATEGORIES      = ['Micro-entrepreneur', 'Salarié', 'Commerçant', 'Agric
 const NIVEAUX_ETUDE   = ['Aucun', 'Primaire', 'Collège', 'Lycée', 'Bac', 'Bac+2', 'Bac+3', 'Bac+5', 'Doctorat']
 const LANGUES         = ['Arabe', 'Français', 'Anglais', 'Amazigh', 'Espagnol']
 
-// ── Tabs du formulaire ────────────────────────────────────────────
 const TABS = [
   { id: 'identite',     label: 'Identité' },
   { id: 'infos',        label: 'Infos clients' },
@@ -30,28 +28,14 @@ const TABS = [
 ]
 
 const INITIAL_FORM = {
-  nom: '',
-  prenom: '',
-  email: '', // sera mappé vers l'email de la personne
-  telephone: '',
-  date_naissance: '',
-  // Identité
-   nil: '', est_vip: false,
-  type_piece_identite: 'CIN', numero_piece_identite: '',
-  date_expiration_piece: '',
-  // Infos clients
-  categorie_client: '', titre: 'M.', fonction: '',
-  secteur_activite: '', niveau_etude: '', nom_mere: '',
-  genre: 'HOMME', langue: 'Arabe',
-  pays_naissance: 'Maroc', ville_naissance: '',
-  situation_familiale: 'CELIBATAIRE', nombre_enfants: 0,
-  nom_conjoint: '', prenom_conjoint: '',
-  // Adresse
-  telephone_secondaire: '', email_client: '',
-  code_postal: '', adresse_1: '', adresse_2: '',
-  ville: '', pays: 'Maroc', coordonnees_gps: '',
-  // Crédit
-  nationalite: 'Marocaine', revenu_mensuel: '',
+  nom: '', prenom: '', email: '', telephone: '', date_naissance: '',
+  nil: '', est_vip: false, type_piece_identite: 'CIN', numero_piece_identite: '',
+  date_expiration_piece: '', categorie_client: '', titre: 'M.', fonction: '',
+  secteur_activite: '', niveau_etude: '', nom_mere: '', genre: 'HOMME', langue: 'Arabe',
+  pays_naissance: 'Maroc', ville_naissance: '', situation_familiale: 'CELIBATAIRE',
+  nombre_enfants: 0, nom_conjoint: '', prenom_conjoint: '', telephone_secondaire: '',
+  email_client: '', code_postal: '', adresse_1: '', adresse_2: '', ville: '',
+  pays: 'Maroc', coordonnees_gps: '', nationalite: 'Marocaine', revenu_mensuel: '',
   score_eligibilite: '',
 }
 
@@ -72,17 +56,12 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
   )
   return (
     <div>
-      {/* Onglets */}
       <div className="flex border-b border-surface-100 mb-6 -mx-6 px-6">
         {TABS.map(t => (
           <button
-            key={t.id}
-            type="button"
-            onClick={() => setActiveTab(t.id)}
+            key={t.id} type="button" onClick={() => setActiveTab(t.id)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === t.id
-                ? 'border-brand-600 text-brand-700'
-                : 'border-transparent text-surface-800/60 hover:text-surface-800'
+              activeTab === t.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-surface-800/60 hover:text-surface-800'
             }`}
           >
             {t.label}
@@ -93,69 +72,28 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
       <form onSubmit={e => { e.preventDefault(); onSave(f) }} className="space-y-4">
         <ErrorAlert message={error} />
 
-        {/* ── Onglet Identité ──────────────────────────────────── */}
         {activeTab === 'identite' && (
-  <div className="space-y-4">
-    <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">
-      Informations Personnelles
-    </p>
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="label">Prénom *</label>
-        <input className={inputClass} value={f.prenom} onChange={set('prenom')} required />
-      </div>
-      <div>
-        <label className="label">Nom *</label>
-        <input className={inputClass} value={f.nom} onChange={set('nom')} required />
-      </div>
-      <div>
-        <label className="label">Date de naissance *</label>
-        <input className={inputClass} type="date" value={f.date_naissance} onChange={set('date_naissance')} required />
-      </div>
-      <div>
-        <label className="label">Email (Principal) *</label>
-        <input className={inputClass} type="email" value={f.email} onChange={set('email')} required />
-      </div>
-      <div>
-        <label className="label">Téléphone *</label>
-        <input className={inputClass} value={f.telephone} onChange={set('telephone')} placeholder="+212..." />
-      </div>
-    </div>
+          <div className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">Informations Personnelles</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="label">Prénom *</label><input className={inputClass} value={f.prenom} onChange={set('prenom')} required /></div>
+              <div><label className="label">Nom *</label><input className={inputClass} value={f.nom} onChange={set('nom')} required /></div>
+              <div><label className="label">Date de naissance *</label><input className={inputClass} type="date" value={f.date_naissance} onChange={set('date_naissance')} required /></div>
+              <div><label className="label">Email (Principal) *</label><input className={inputClass} type="email" value={f.email} onChange={set('email')} required /></div>
+              <div><label className="label">Téléphone *</label><input className={inputClass} value={f.telephone} onChange={set('telephone')} placeholder="+212..." /></div>
+            </div>
 
-    <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40 mt-6">
-      Identification légale
-    </p>
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="label">NIL — Numéro d'Identification Légal *</label>
-        <input className={inputClass} value={f.nil} onChange={set('nil')} required placeholder="Unique et obligatoire" />
-      </div>
-      {/* Retirez le champ ID Personne car il sera généré par le backend */}
-      <div>
-        <label className="label">Type de pièce d'identité *</label>
-        {sel('type_piece_identite', PIECES)}
-      </div>
-      <div>
-        <label className="label">N° de pièce *</label>
-        <input className={inputClass} value={f.numero_piece_identite} onChange={set('numero_piece_identite')} required />
-      </div>
-      <div>
-        <label className="label">Date d'expiration</label>
-        <input className={inputClass} type="date" value={f.date_expiration_piece} onChange={set('date_expiration_piece')} />
-      </div>
-   
-      <div>
-            <label className="label">Agent Gestionnaire (ID)</label>
-            <input 
-              className="input bg-surface-50 text-surface-500 cursor-not-allowed font-mono" 
-              value={f.employe_id || ''} 
-              disabled // Désactivé pour empêcher la modification
-              readOnly
-            />
-            <p className="text-[10px] text-brand-600 mt-1 italic">
-              Ce client sera affecté à votre portefeuille agent.
-            </p>
-          </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40 mt-6">Identification légale</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="label">NIL — Numéro d'Identification Légal *</label><input className={inputClass} value={f.nil} onChange={set('nil')} required placeholder="Unique et obligatoire" /></div>
+              <div><label className="label">Type de pièce d'identité *</label>{sel('type_piece_identite', PIECES)}</div>
+              <div><label className="label">N° de pièce *</label><input className={inputClass} value={f.numero_piece_identite} onChange={set('numero_piece_identite')} required /></div>
+              <div><label className="label">Date d'expiration</label><input className={inputClass} type="date" value={f.date_expiration_piece} onChange={set('date_expiration_piece')} /></div>
+              <div>
+                <label className="label">Agent Gestionnaire (ID)</label>
+                <input className="input bg-surface-50 text-surface-500 cursor-not-allowed font-mono" value={f.employe_id || ''} disabled readOnly />
+                <p className="text-[10px] text-brand-600 mt-1 italic">Ce client sera affecté à votre portefeuille agent.</p>
+              </div>
             </div>
             <div className="flex items-center gap-3 mt-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
               <input type="checkbox" id="vip" checked={f.est_vip} onChange={setB('est_vip')} className="w-4 h-4 accent-amber-500" />
@@ -166,7 +104,6 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
           </div>
         )}
 
-        {/* ── Onglet Infos clients ─────────────────────────────── */}
         {activeTab === 'infos' && (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">Profil personnel</p>
@@ -194,7 +131,6 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
           </div>
         )}
 
-        {/* ── Onglet Adresse ───────────────────────────────────── */}
         {activeTab === 'adresse' && (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">Coordonnées</p>
@@ -214,7 +150,6 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
           </div>
         )}
 
-        {/* ── Onglet Profil crédit ─────────────────────────────── */}
         {activeTab === 'credit' && (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-surface-800/40">Informations financières</p>
@@ -223,40 +158,33 @@ function ClientForm({ initial = {}, onSave, loading, error }) {
               <div><label className="label">Revenu mensuel (MAD) *</label><input className={inputClass} type="number" step="0.01" min="0" value={f.revenu_mensuel} onChange={set('revenu_mensuel')} required /></div>
               <div><label className="label">Score d'éligibilité (0 – 100)</label><input className={inputClass} type="number" min="0" max="100" step="0.01" value={f.score_eligibilite} onChange={set('score_eligibilite')} /></div>
             </div>
-            <div className="mt-2 p-4 bg-surface-50 rounded-xl border border-surface-100 text-sm text-surface-800/60">
-              ℹ️ Le NIL et le numéro de téléphone doivent être vérifiés avant la sauvegarde. Un code PIN sera envoyé par SMS au client.
-            </div>
           </div>
         )}
 
-        {/* Navigation onglets */}
         <div className="flex justify-between items-center pt-4 border-t border-surface-100">
           <button
-            type="button"
+            type="button" disabled={activeTab === TABS[0].id} className="btn-secondary"
             onClick={() => {
               const idx = TABS.findIndex(t => t.id === activeTab)
               if (idx > 0) setActiveTab(TABS[idx - 1].id)
             }}
-            className="btn-secondary"
-            disabled={activeTab === TABS[0].id}
           >
             ← Précédent
           </button>
 
           {activeTab !== TABS[TABS.length - 1].id ? (
             <button
-              type="button"
+              type="button" className="btn-primary"
               onClick={() => {
                 const idx = TABS.findIndex(t => t.id === activeTab)
                 setActiveTab(TABS[idx + 1].id)
               }}
-              className="btn-primary"
             >
               Suivant →
             </button>
           ) : (
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? <Spinner className="w-4 h-4" /> : null}
+              {loading && <Spinner className="w-4 h-4" />}
               {initial?.id ? 'Enregistrer' : 'Créer le client'}
             </button>
           )}
@@ -277,16 +205,26 @@ export default function ClientsPage() {
   const [saving, setSaving]     = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  const isAgent = user?.role === 'AGENT_CREDIT' || user?.type === 'AGENT_CREDIT';
+
+  // ── 1. RECHERCHE SYNCHRONISÉE : Intégration complète dans le hook d'API 
   const fetcher = useCallback(() => clientsApi.list({ page, search: search || undefined }), [page, search])
   const { data, loading, error, execute: refresh } = useApi(fetcher, [page, search])
+  
   const clients = data?.data ?? []
   const meta    = data?.meta
 
-  const openEdit   = c => { setSelected(c); setModal('edit') }
-  const openDelete = c => { setSelected(c); setModal('delete') }
+  // ── 2. CYCLE DE VIE : Écoute les modifications de texte ou de pagination pour recharger la vue
+  useEffect(() => {
+    refresh()
+  }, [refresh, page, search])
+
+  const openEdit   = c => { if(isAgent) { setSelected(c); setModal('edit'); } }
+  const openDelete = c => { if(isAgent) { setSelected(c); setModal('delete'); } }
   const closeModal = () => { setModal(null); setSaveError(''); setSelected(null) }
-  const currentEmployeId = JSON.parse(localStorage.getItem('user'))?.employe_id || '';
+
   const handleSave = async (form) => {
+    if (!isAgent) return;
     setSaving(true); setSaveError('')
     try {
       if (modal === 'create') await clientsApi.create(form)
@@ -298,6 +236,7 @@ export default function ClientsPage() {
   }
 
   const handleDelete = async () => {
+    if (!isAgent) return;
     setSaving(true)
     try { await clientsApi.delete(selected.id); closeModal(); refresh() }
     finally { setSaving(false) }
@@ -309,29 +248,27 @@ export default function ClientsPage() {
         title="Clients"
         subtitle="Gestion du portefeuille clients"
         action={
-          <button className="btn-primary" onClick={() => setModal('create')}>
-            <Plus size={16} /> Nouveau client
-          </button>
+          isAgent ? (
+            <button className="btn-primary" onClick={() => setModal('create')}>
+              <Plus size={16} /> Nouveau client
+            </button>
+          ) : null
         }
       />
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <StatCard label="Total clients" value={meta?.total ?? '—'} icon={Users}         color="brand" />
-        <StatCard label="VIP"           value={clients.filter(c => c.est_vip).length}   icon={UserCheck} color="blue" />
-        <StatCard label="Liste noire"   value={clients.filter(c => c.est_sur_liste_noire).length} icon={AlertTriangle} color="red" />
+        <StatCard label="Total clients" value={meta?.total ?? '—'} icon={Users} color="brand" />
+        <StatCard label="VIP" value={meta?.total ? clients.filter(c => c.est_vip).length : '—'} icon={UserCheck} color="blue" />
+        <StatCard label="Liste noire" value={meta?.total ? clients.filter(c => c.est_sur_liste_noire).length : '—'} icon={AlertTriangle} color="red" />
       </div>
 
-      {/* Table */}
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">
           <div className="relative flex-1 max-w-sm">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-800/40" />
             <input
-              className="input pl-9 py-2"
-              placeholder="NIL, nom, prénom, n° pièce…"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              className="input pl-9 py-2" placeholder="NIL, nom, prénom, n° pièce…"
+              value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             />
           </div>
         </div>
@@ -341,42 +278,45 @@ export default function ClientsPage() {
         : clients.length === 0 ? <Empty message="Aucun client trouvé." />
         : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border-collapse">
               <thead className="bg-surface-50 border-b border-surface-100">
+                {/* ── 3. STRUCTURE : Alignement strict horizontal et typographique */}
                 <tr>
                   {['Code', 'NIL', 'Nom complet', 'Secteur', 'Ville', 'Revenu mensuel', 'Statut', ''].map(h => (
-                    <th key={h} className="th">{h}</th>
+                    <th key={h} className="th py-3 px-4 text-left font-semibold text-sm">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-surface-100">
                 {clients.map(c => (
-                  <tr key={c.id} className="table-row">
-                    <td className="td font-mono text-xs text-brand-600">{c.code_client ?? `#${c.id}`}</td>
-                    <td className="td font-mono text-xs text-surface-800/70">{c.nil ?? '—'}</td>
-                    <td className="td">
+                  /* tr en align-middle pour éviter les sauts de lignes désordonnés entre textes longs et badges */
+                  <tr key={c.id} className="table-row hover:bg-surface-50/50 transition-colors align-middle">
+                    <td className="td py-3 px-4 font-mono text-xs text-brand-600">{c.code_client ?? `#${c.id}`}</td>
+                    <td className="td py-3 px-4 font-mono text-xs text-surface-800/70">{c.nil ?? '—'}</td>
+                    <td className="td py-3 px-4">
                       <div className="flex items-center gap-2">
                         {c.est_vip && <Star size={12} className="text-amber-400 fill-amber-400" />}
-                        <span className="font-medium">{c.personne?.prenom} {c.personne?.nom}</span>
+                        <span className="font-medium text-surface-900">{c.personne?.prenom} {c.personne?.nom}</span>
                       </div>
-                      <p className="text-xs text-surface-800/50">{c.titre} · {c.genre}</p>
+                      <p className="text-[11px] text-surface-800/50 mt-0.5">{c.titre} · {c.genre}</p>
                     </td>
-                    <td className="td text-xs">{c.secteur_activite ?? '—'}</td>
-                    <td className="td text-xs">{c.ville ?? '—'}</td>
-                    <td className="td font-mono text-xs">{formatMontant(c.revenu_mensuel)}</td>
-                    <td className="td">
-                      <div className="flex flex-col gap-1">
-                        {c.est_sur_liste_noire
-                          ? <span className="badge bg-red-100 text-red-700"><ShieldAlert size={10} className="mr-1" />Liste noire</span>
-                          : <span className="badge bg-emerald-100 text-emerald-700">Actif</span>}
-                        {!c.pin_verifie && <span className="badge bg-amber-100 text-amber-700 text-[10px]">PIN non vérifié</span>}
-                      </div>
+                    <td className="td py-3 px-4 text-xs text-surface-800/80">{c.secteur_activite ?? '—'}</td>
+                    <td className="td py-3 px-4 text-xs text-surface-800/80">{c.ville ?? '—'}</td>
+                    <td className="td py-3 px-4 font-mono text-xs text-surface-900">{formatMontant(c.revenu_mensuel)}</td>
+                    <td className="td py-3 px-4">
+                      {c.est_sur_liste_noire
+                        ? <span className="badge bg-red-100 text-red-700"><ShieldAlert size={10} className="mr-1 inline-block" />Liste noire</span>
+                        : <span className="badge bg-emerald-100 text-emerald-700">Actif</span>}
                     </td>
-                    <td className="td">
-                      <div className="flex items-center gap-1">
+                    <td className="td py-3 px-4">
+                      <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => navigate(`/clients/${c.id}`)} className="p-1.5 rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-colors" title="Voir"><Eye size={14} /></button>
-                        <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Modifier"><Pencil size={14} /></button>
-                        <button onClick={() => openDelete(c)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors" title="Supprimer"><Trash2 size={14} /></button>
+                        {isAgent && (
+                          <>
+                            <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Modifier"><Pencil size={14} /></button>
+                            <button onClick={() => openDelete(c)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors" title="Supprimer"><Trash2 size={14} /></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -388,25 +328,22 @@ export default function ClientsPage() {
         <div className="px-5 pb-4"><Pagination meta={meta} onPageChange={setPage} /></div>
       </div>
 
-      {/* Modals */}
-      <Modal open={modal === 'create'} onClose={closeModal} title="Nouveau client — Enrôlement" size="xl">
-        <ClientForm 
-          onSave={handleSave} 
-          loading={saving} 
-          error={saveError} 
-          // On initialise employe_id avec l'ID de l'agent connecté
-          initial={{ employe_id: user?.id }} 
-        />
-      </Modal>
-      <Modal open={modal === 'edit'} onClose={closeModal} title="Modifier le client" size="xl">
-        <ClientForm initial={selected} onSave={handleSave} loading={saving} error={saveError} />
-      </Modal>
-      <ConfirmDialog
-        open={modal === 'delete'} onClose={closeModal} onConfirm={handleDelete}
-        title="Supprimer le client"
-        message={`Voulez-vous vraiment supprimer le client ${selected?.code_client ?? '#' + selected?.id} ?`}
-        loading={saving}
-      />
+      {isAgent && (
+        <>
+          <Modal open={modal === 'create'} onClose={closeModal} title="Nouveau client — Enrôlement" size="xl">
+            <ClientForm onSave={handleSave} loading={saving} error={saveError} initial={{ employe_id: user?.employe_id || user?.id }} />
+          </Modal>
+          <Modal open={modal === 'edit'} onClose={closeModal} title="Modifier le client" size="xl">
+            <ClientForm initial={selected} onSave={handleSave} loading={saving} error={saveError} />
+          </Modal>
+          <ConfirmDialog
+            open={modal === 'delete'} onClose={closeModal} onConfirm={handleDelete}
+            title="Supprimer le client"
+            message={`Voulez-vous vraiment supprimer le client ${selected?.code_client ?? '#' + selected?.id} ?`}
+            loading={saving}
+          />
+        </>
+      )}
     </div>
   )
 }

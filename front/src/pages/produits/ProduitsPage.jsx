@@ -1,7 +1,8 @@
-import { useState, useCallback ,useEffect} from 'react'
-import { Plus, Search, Pencil, Trash2, Layers } from 'lucide-react'
-import { produitsApi } from '../../api/services' // Ajustez selon votre arborescence
+import { useState, useCallback, useEffect } from 'react'
+import { Plus, Search, Pencil, Trash2, Layers, Calendar } from 'lucide-react'
+import { produitsApi } from '../../api/services' 
 import { useApi } from '../../hooks/useApi'
+import { formatDate } from '../../utils/helpers' // On importe formatDate pour le tableau
 import { PageHeader, Modal, ConfirmDialog, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
 
 const MODES = ['CONSTANT', 'DEGRESSIF', 'LINEAIRE', 'IN_FINE']
@@ -11,34 +12,35 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
   const [f, setF] = useState({
     type_produit: '', famille_produit: '', montant_min: '', montant_max: '',
     taux_interet_min: '', taux_interet_max: '', mode_calcul: 'CONSTANT', actif: true,
+    date_debut: '', date_fin: '', // ── Initialisation des champs dates
     ...initial
   })
 
-  // Permet de repasser en % pour l'affichage utilisateur lors de l'édition
   useEffect(() => {
     if (isEdit) {
       setF(p => ({
         ...p,
-        taux_interet_min: initial.taux_interet_min
-          ? parseFloat(initial.taux_interet_min) * 100
-          : '',
-        taux_interet_max: initial.taux_interet_max
-          ? parseFloat(initial.taux_interet_max) * 100
-          : ''
+        taux_interet_min: initial.taux_interet_min ? parseFloat(initial.taux_interet_min) * 100 : '',
+        taux_interet_max: initial.taux_interet_max ? parseFloat(initial.taux_interet_max) * 100 : '',
+        // Extraction au format YYYY-MM-DD si les dates proviennent de la BDD avec des timestamps
+        date_debut: initial.date_debut ? initial.date_debut.split('T')[0] : '',
+        date_fin: initial.date_fin ? initial.date_fin.split('T')[0] : ''
       }))
     }
   }, [isEdit, initial])
+
   const set = k => e => setF(p => ({ ...p, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Transformation des taux % en décimales pour Laravel (ex: 12% -> 0.12)
     const dataToSave = {
       ...f,
       montant_min: parseFloat(f.montant_min),
       montant_max: parseFloat(f.montant_max),
       taux_interet_min: parseFloat(f.taux_interet_min) / 100,
       taux_interet_max: parseFloat(f.taux_interet_max) / 100,
+      date_debut: f.date_debut || null, // Convertit les chaînes vides en null pour l'API
+      date_fin: f.date_fin || null
     }
     onSave(dataToSave)
   }
@@ -46,6 +48,7 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <ErrorAlert message={error} />
+      
       <p className="text-xs font-semibold uppercase tracking-wide text-surface-800/50 mb-1">Caractéristiques de base</p>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="label">Nom du produit *</label><input className="input" value={f.type_produit} onChange={set('type_produit')} required placeholder="Ex: Crédit Express" /></div>
@@ -56,8 +59,8 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
 
       <p className="text-xs font-semibold uppercase tracking-wide text-surface-800/50 mb-1 pt-2">Barèmes & Paramètres</p>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">Taux Annuel Min (%) *</label><input className="input" type="number" step="0.01" value={f.taux_interet_min} onChange={set('taux_interet_min')} required placeholder="Ex: 5" /></div>
-        <div><label className="label">Taux Annuel Max (%) *</label><input className="input" type="number" step="0.01" value={f.taux_interet_max} onChange={set('taux_interet_max')} required placeholder="Ex: 15" /></div>
+        <div><label className="label">Taux intérêt Min (%) *</label><input className="input" type="number" step="0.01" value={f.taux_interet_min} onChange={set('taux_interet_min')} required placeholder="Ex: 5" /></div>
+        <div><label className="label">Taux intérêt Max (%) *</label><input className="input" type="number" step="0.01" value={f.taux_interet_max} onChange={set('taux_interet_max')} required placeholder="Ex: 15" /></div>
         <div>
           <label className="label">Mode de calcul *</label>
           <select className="input" value={f.mode_calcul} onChange={set('mode_calcul')}>
@@ -69,6 +72,20 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
           <label htmlFor="actif" className="text-sm font-medium text-surface-900 select-none">Produit Actif</label>
         </div>
       </div>
+
+      {/* ── NOUVELLE SECTION DATES DANS LE FORMULAIRE ─────────── */}
+      <p className="text-xs font-semibold uppercase tracking-wide text-surface-800/50 mb-1 pt-2">Période de Validité</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Date de début</label>
+          <input className="input" type="date" value={f.date_debut} onChange={set('date_debut')} />
+        </div>
+        <div>
+          <label className="label">Date de fin</label>
+          <input className="input" type="date" value={f.date_fin} onChange={set('date_fin')} min={f.date_debut} />
+        </div>
+      </div>
+
       <div className="flex justify-end pt-2">
         <button className="btn-primary" disabled={loading}>{loading ? '…' : isEdit ? 'Enregistrer' : 'Créer'}</button>
       </div>
@@ -84,24 +101,16 @@ export default function ProduitsPage() {
   const [saving, setSaving]     = useState(false)
   const [saveErr, setSaveErr]   = useState('')
 
-  const fetcher = useCallback(
-    () => produitsApi.list({ page, search }),
-    [page, search]
-  )
-    const { data, loading, error, execute: refresh } = useApi(fetcher, [page])
+  const fetcher = useCallback(() => produitsApi.list({ page, search }), [page, search])
+  const { data, loading, error, execute: refresh } = useApi(fetcher, [page])
 
-const produits = Array.isArray(data)
-  ? data
-  : data?.data ?? []
-
-const meta = data?.meta
+  const produits = Array.isArray(data) ? data : data?.data ?? []
+  const meta = data?.meta
   
- 
-  // ── AJOUTEZ CE BLOC ICI ──────────────────────────────────────────
-  // Cela force le hook useApi à s'exécuter dès que la page s'affiche
   useEffect(() => {
     refresh()
   }, [refresh, page])
+
   const closeModal = () => { setModal(null); setSaveErr(''); setSelected(null) }
 
   const handleSave = async (form) => {
@@ -140,12 +149,8 @@ const meta = data?.meta
       />
 
       <div className="grid grid-cols-2 gap-4 mb-6">
-      <StatCard
-  label="Total produits"
-  value={meta?.total ?? produits.length}
-  icon={Layers}
-  color="brand"
-/>     <StatCard label="Produits actifs" value={produits.filter(p => p.actif).length} icon={Layers} color="blue" />
+        <StatCard label="Total produits" value={meta?.total ?? produits.length} icon={Layers} color="brand" />
+        <StatCard label="Produits actifs" value={produits.filter(p => p.actif).length} icon={Layers} color="blue" />
       </div>
 
       <div className="card p-0">
@@ -160,50 +165,69 @@ const meta = data?.meta
         : produits.length === 0 ? <Empty message="Aucun produit trouvé." />
         : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>{['ID', 'Désignation', 'Fourchette Montants', 'Taux d\'intérêt', 'Mode de calcul', 'Statut', ''].map(h => <th key={h} className="th">{h}</th>)}</tr>
-              </thead>
-              <tbody>
-              {produits.filter(p =>
-                        (p.type_produit || '')
-                        .toLowerCase()
-                        .includes(search.toLowerCase()) ||
-
-                        (p.famille_produit || '')
-                        .toLowerCase()
-                        .includes(search.toLowerCase())
-                    )
-                    .map(p => (
-                  <tr key={p.id} className="table-row">
-                    <td className="td font-mono text-xs text-surface-800/60">#{p.id}</td>
-                    <td className="td font-medium">
-                      <div>{p.type_produit}</div>
-                      <div className="text-[11px] font-normal text-surface-800/50 mt-0.5">{p.famille_produit}</div>
-                    </td>
-                    <td className="td text-xs font-mono">
-                      {parseFloat(p.montant_min).toLocaleString()} - {parseFloat(p.montant_max).toLocaleString()}
-                    </td>
-                    <td className="td text-xs font-mono">
-                      {(parseFloat(p.taux_interet_min) * 100).toFixed(2)}% - {(parseFloat(p.taux_interet_max) * 100).toFixed(2)}%
-                    </td>
-                    <td className="td"><span className={`badge ${modeColor[p.mode_calcul] ?? 'bg-surface-100 text-surface-800'}`}>{p.mode_calcul}</span></td>
-                    <td className="td">
-                      {p.actif 
-                        ? <span className="badge bg-emerald-100 text-emerald-700">Actif</span>
-                        : <span className="badge bg-surface-100 text-surface-600">Inactif</span>
-                      }
-                    </td>
-                    <td className="td">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => { setSelected(p); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
-                        <button onClick={() => { setSelected(p); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+           <table className="w-full border-collapse">
+  <thead className="bg-surface-50 border-b border-surface-100">
+    <tr>
+      {/* Ajustez la classe "py-3 px-4" (ou votre équivalent de padding) 
+        pour qu'elle corresponde exactement à vos <td> 
+      */}
+      <th className="th py-3 px-4 text-left font-semibold text-sm">ID</th>
+      <th className="th py-1 px-4 text-left font-semibold text-sm">Désignation</th>
+      <th className="th py-3 px-4 text-left font-semibold text-sm">Fourchette Montants DH</th>
+      <th className="th py-3 px-4 text-left font-semibold text-sm">Taux d'intérêt</th>
+      <th className="th py-3 px-4 text-left font-semibold text-sm">Mode de calcul</th>
+      <th className="th py-3 px-4 text-left font-semibold text-sm">Validité</th>
+      <th className="th py-3 px-4 text-left font-semibold text-sm">Statut</th>
+      <th className="th py-3 px-4"></th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-surface-100">
+    {produits
+      .filter(p =>
+        (p.type_produit || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.famille_produit || '').toLowerCase().includes(search.toLowerCase())
+      )
+      .map(p => (
+        /* align-middle ou vertical-align permet de s'assurer que le contenu court (ex: ID) se centre par rapport au contenu haut (ex: Désignation ou Validité) */
+        <tr key={p.id} className="table-row hover:bg-surface-50/50 transition-colors align-middle">
+          <td className="td py-3 px-4 font-mono text-xs text-surface-800/60">#{p.id}</td>
+          <td className="td py-3 px-4">
+            <div className="font-medium text-surface-900">{p.type_produit}</div>
+            <div className="text-[11px] text-surface-800/50 mt-0.5">{p.famille_produit}</div>
+          </td>
+          <td className="td py-3 px-4 text-xs font-mono text-surface-900">
+            {parseFloat(p.montant_min).toLocaleString()} - {parseFloat(p.montant_max).toLocaleString()}
+          </td>
+          <td className="td py-3 px-4 text-xs font-mono text-surface-900">
+            {(parseFloat(p.taux_interet_min) * 100).toFixed(2)}% - {(parseFloat(p.taux_interet_max) * 100).toFixed(2)}%
+          </td>
+          <td className="td py-3 px-4">
+            <span className={`badge ${modeColor[p.mode_calcul] ?? 'bg-surface-100 text-surface-800'}`}>
+              {p.mode_calcul}
+            </span>
+          </td>
+          <td className="td py-3 px-4 text-xs text-surface-800/70">
+            <div className="flex flex-col gap-0.5 justify-center">
+              <span>Du : {p.date_debut ? formatDate(p.date_debut) : '—'}</span>
+              <span>Au : {p.date_fin ? formatDate(p.date_fin) : '—'}</span>
+            </div>
+          </td>
+          <td className="td py-3 px-4">
+            {p.actif 
+              ? <span className="badge bg-emerald-100 text-emerald-700">Actif</span>
+              : <span className="badge bg-surface-100 text-surface-600">Inactif</span>
+            }
+          </td>
+          <td className="td py-3 px-4">
+            <div className="flex items-center gap-1 justify-end">
+              <button onClick={() => { setSelected(p); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
+              <button onClick={() => { setSelected(p); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+            </div>
+          </td>
+        </tr>
+      ))}
+  </tbody>
+</table>
           </div>
         )}
         <div className="px-5 pb-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
@@ -221,5 +245,4 @@ const meta = data?.meta
   )
 }
 
-// Alias interne pour matcher le composant enfant
 const FormulaireProduitCree = ProduitForm;

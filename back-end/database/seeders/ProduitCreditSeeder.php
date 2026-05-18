@@ -13,6 +13,8 @@ class ProduitCreditSeeder extends Seeder
             [
                 'type_produit'     => 'Crédit Express',
                 'famille_produit'  => 'Consommation',
+                'date_debut'       => now()->subMonths(6), // Actif depuis 6 mois
+                'date_fin'         => now()->addMonths(6), // Expire dans 6 mois
                 'montant_min'      => 1000.00,
                 'montant_max'      => 10000.00,
                 'taux_interet_min' => 0.0800, // 8%
@@ -23,6 +25,9 @@ class ProduitCreditSeeder extends Seeder
             [
                 'type_produit'     => 'Micro-Entreprise',
                 'famille_produit'  => 'Professionnel',
+                    'date_debut'       => now()->subMonths(3), // Actif depuis 3 mois
+                    'date_fin'         => now()->addMonths(9), // Expire dans 9 mois
+
                 'montant_min'      => 5000.00,
                 'montant_max'      => 50000.00,
                 'taux_interet_min' => 0.0500, // 5%
@@ -33,6 +38,8 @@ class ProduitCreditSeeder extends Seeder
             [
                 'type_produit'     => 'Crédit Campagne Agricole',
                 'famille_produit'  => 'Agriculture',
+                    'date_debut'       => now()->subMonths(1), // Actif depuis 1 mois
+                    'date_fin'         => now()->addMonths(11), // Expire dans 11 mois
                 'montant_min'      => 2000.00,
                 'montant_max'      => 30000.00,
                 'taux_interet_min' => 0.0400,
@@ -43,6 +50,8 @@ class ProduitCreditSeeder extends Seeder
             [
                 'type_produit'     => 'Équipement Maison',
                 'famille_produit'  => 'Social',
+                'date_debut'       => now()->subMonths(2), // Actif depuis 2 mois
+                'date_fin'         => now()->addMonths(10), // Expire dans 10 mois
                 'montant_min'      => 500.00,
                 'montant_max'      => 5000.00,
                 'taux_interet_min' => 0.1000,
@@ -53,6 +62,8 @@ class ProduitCreditSeeder extends Seeder
             [
                 'type_produit'     => 'Ancien Produit Test',
                 'famille_produit'  => 'Test',
+                'date_debut'       => now()->subMonths(12), // Actif depuis 12 mois
+                'date_fin'         => now()->addMonths(12), // Expire dans 12 mois
                 'montant_min'      => 100.00,
                 'montant_max'      => 1000.00,
                 'taux_interet_min' => 0.0100,

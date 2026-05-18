@@ -9,8 +9,9 @@ import {
 // 1. On ajoute les rôles autorisés pour chaque lien.
 // Si 'roles' n'est pas défini, le lien est visible par tout le monde.
 const navItems = [
+  { to: '/vision360Page', label: 'Vision 360°', icon: LayoutDashboard, roles: ['AGENT_CREDIT'] }, // Visible par tous les rôles
   { to: '/dashboard', label: 'Dashboard Admin', icon: LayoutDashboard ,roles: ['ADMIN'] }, // Visible par Admin et Agent de crédit
-  { to: '/clients',   label: 'Clients',   icon: Users, roles: ['ADMIN', 'AGENT_CREDIT'] },
+  { to: '/clients',   label: 'Clients',   icon: Users, roles: ['AGENT_CREDIT'] },
   { to: '/employes',  label: 'Employés',  icon: UserCheck, roles: ['ADMIN'] }, // Uniquement Admin
   { to: '/demandes',  label: 'Demandes de crédit', icon: FileText, roles: ['AGENT_CREDIT'] },
   { to: '/produits',  label: 'Produits',  icon: FileText, roles: ['ADMIN'] }, // Uniquement Admin

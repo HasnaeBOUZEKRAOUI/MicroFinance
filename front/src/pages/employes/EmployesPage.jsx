@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { Plus, Search, Pencil, Trash2, Users, UserCheck } from 'lucide-react'
 import { employesApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { formatDate } from '../../utils/helpers'
 import { PageHeader, Modal, ConfirmDialog, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
-import { UserCheck, Users } from 'lucide-react'
 
-const ROLES = ['ADMIN', 'AGENT_CREDIT', 'DIRECTEUR']
+// Liste mise à jour avec tous les rôles gérés par l'application
+const ROLES = ['ADMIN', 'AGENT_CREDIT', 'CAISSIER', 'SUPERVISEUR', 'DIRECTEUR']
 
 function EmployeForm({ initial = {}, onSave, loading, error }) {
   const isEdit = !!initial?.id
@@ -60,9 +60,17 @@ export default function EmployesPage() {
   const [saving, setSaving]     = useState(false)
   const [saveErr, setSaveErr]   = useState('')
 
-  const fetcher = useCallback(() => employesApi.list({ page }), [page])
-  const { data, loading, error, execute: refresh } = useApi(fetcher, [page])
+  // ── 1. MODIFICATION : Ajout du paramètre de recherche envoyé au serveur
+  const fetcher = useCallback(() => employesApi.list({ page, search }), [page, search])
+  
+  // ── 2. MODIFICATION : Déclenchement automatique du hook lors du changement de page ou recherche
+  const { data, loading, error, execute: refresh } = useApi(fetcher, [page, search])
+  
   const employes = data?.data ?? []
+
+  useEffect(() => {
+    refresh()
+  }, [refresh, page, search])
 
   const closeModal = () => { setModal(null); setSaveErr(''); setSelected(null) }
 
@@ -104,36 +112,44 @@ export default function EmployesPage() {
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard label="Total employés" value={data?.meta?.total ?? '—'} icon={Users} color="brand" />
-        <StatCard label="Agents actifs"  value={employes.length}           icon={UserCheck} color="blue" />
+        <StatCard label="Agents actifs"  value={data?.meta?.total ?? employes.length} icon={UserCheck} color="blue" />
       </div>
 
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">
           <div className="relative flex-1 max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-800/40" />
-            <input className="input pl-9 py-2" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="input pl-9 py-2" placeholder="Rechercher…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
           </div>
         </div>
 
         {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
         : employes.length === 0 ? <Empty message="Aucun employé trouvé." />
         : (
-          <div className="overflow-x-auto ">
-            <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>{['ID', 'Nom complet', 'Nom utilisateur', 'Rôle', 'Embauche', 'Superviseur', ''].map(h => <th key={h} className="th">{h}</th>)}</tr>
+                {/* ── 3. MODIFICATION : Alignement strict des th avec les td */}
+                <tr>
+                  {['ID', 'Nom complet', 'Nom utilisateur', 'Rôle', 'Embauche', ''].map(h => (
+                    <th key={h} className="th py-3 px-4 text-left font-semibold text-sm">{h}</th>
+                  ))}
+                </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-surface-100">
                 {employes.map(e => (
-                  <tr key={e.id} className="table-row">
-                    <td className="td font-mono text-xs text-surface-800/60">#{e.id}</td>
-                    <td className="td font-medium">{e.personne?.prenom} {e.personne?.nom}</td>
-                    <td className="td text-xs font-mono text-surface-800/70">{e.nom_utilisateur}</td>
-                    <td className="td"><span className={`badge ${roleColor[e.role] ?? 'bg-surface-100 text-surface-800'}`}>{e.role}</span></td>
-                    <td className="td text-xs">{formatDate(e.date_embauche)}</td>
-                    <td className="td text-xs">{e.superviseur ? `#${e.superviseur.id}` : '—'}</td>
-                    <td className="td">
-                      <div className="flex items-center gap-1">
+                  /* tr configuré en align-middle pour centrer verticalement toutes les cellules */
+                  <tr key={e.id} className="table-row hover:bg-surface-50/50 transition-colors align-middle">
+                    <td className="td py-3 px-4 font-mono text-xs text-surface-800/60">#{e.id}</td>
+                    <td className="td py-3 px-4 font-medium text-surface-900">{e.personne?.prenom} {e.personne?.nom}</td>
+                    <td className="td py-3 px-4 text-xs font-mono text-surface-800/70">{e.nom_utilisateur}</td>
+                    <td className="td py-3 px-4">
+                      <span className={`badge ${roleColor[e.role] ?? 'bg-surface-100 text-surface-800'}`}>{e.role}</span>
+                    </td>
+                    <td className="td py-3 px-4 text-xs text-surface-800/80">{formatDate(e.date_embauche)}</td>
+                   
+                    <td className="td py-3 px-4">
+                      <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => { setSelected(e); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
                         <button onClick={() => { setSelected(e); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
                       </div>
@@ -148,13 +164,15 @@ export default function EmployesPage() {
       </div>
 
       <Modal open={modal === 'create'} onClose={closeModal} title="Nouvel employé" size="lg">
-        <EmployeForm onSave={handleSave} loading={saving} error={saveErr} />
+        <FormulaireEmployeCree onSave={handleSave} loading={saving} error={saveErr} />
       </Modal>
       <Modal open={modal === 'edit'} onClose={closeModal} title="Modifier l'employé" size="lg">
-        <EmployeForm initial={selected} onSave={handleSave} loading={saving} error={saveErr} />
+        <FormulaireEmployeCree initial={selected} onSave={handleSave} loading={saving} error={saveErr} />
       </Modal>
       <ConfirmDialog open={modal === 'delete'} onClose={closeModal} onConfirm={handleDelete}
         title="Supprimer l'employé" message={`Supprimer l'employé #${selected?.id} ?`} loading={saving} />
     </div>
   )
 }
+
+const FormulaireEmployeCree = EmployeForm;

@@ -14,10 +14,13 @@ return new class extends Migration
             $table->string('famille_produit');
             $table->decimal('montant_min', 15, 2);
             $table->decimal('montant_max', 15, 2);
+            $table->date('date_debut')->nullable()->comment('Date d’activation du produit');
+            $table->date('date_fin')->nullable()->comment('Date d’expiration du produit');
             $table->decimal('taux_interet_min', 5, 4)->comment('Ex: 0.0500 pour 5%');
             $table->decimal('taux_interet_max', 5, 4)->comment('Ex: 0.1500 pour 15%');
             $table->enum('mode_calcul', ['LINEAIRE', 'DEGRESSIF', 'CONSTANT', 'IN_FINE']);
             $table->boolean('actif')->default(true);
+
             $table->timestamps();
             $table->softDeletes();
         });

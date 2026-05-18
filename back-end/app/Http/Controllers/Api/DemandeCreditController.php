@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DemandeCredit;
 use App\Models\Employe;
+use App\Models\Garant;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -31,32 +32,52 @@ class DemandeCreditController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'client_id'         => 'required|exists:clients,id',
-            'produit_credit_id' => 'required|exists:produit_credits,id',
-            'montant_demande'   => 'required|numeric|min:1',
-            'duree_demandee'    => 'required|integer|min:1|max:360',
-            'objet_pret'        => 'required|string|max:255',
-            'garantie'          => 'nullable|string|max:255',
-            'nom_garant'        => 'nullable|string|max:150',
+        $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'produit_credit_id' => 'required|exists:produits_credits,id',
+            'montant_demande' => 'required|numeric|min:0',
+            'duree_demandee' => 'required|integer|min:1',
+            'objet_pret' => 'required|string',
+            'garantie' => 'nullable|string',
+            
+            // Validation des données du garant si présentes
+            'garant' => 'nullable|array',
+            'garant.nom' => 'required_with:garant|string',
+            'garant.prenom' => 'required_with:garant|string',
+            'garant.cin' => 'required_with:garant|string',
+            'garant.telephone' => 'required_with:garant|string',
+            'garant.revenu_mensuel' => 'required_with:garant|numeric|min:0',
+            'garant.relation_client' => 'required_with:garant|string',
         ]);
-
-        // Vérifier que le client n'est pas sur liste noire
-        $client = \App\Models\Client::findOrFail($validated['client_id']);
-        if ($client->verifierBlacklist()) {
-            return response()->json([
-                'message' => 'Ce client est sur liste noire et ne peut pas soumettre de demande.',
-            ], 403);
+    
+        try {
+            $resultat = DB::transaction(function () use ($request) {
+                // 1. Création de la demande
+                $demande = DemandeCredit::create([
+                    'client_id' => $request->client_id,
+                    'produit_credit_id' => $request->produit_credit_id,
+                    'montant_demande' => $request->montant_demande,
+                    'duree_demandee' => $request->duree_demandee,
+                    'objet_pret' => $request->objet_pret,
+                    'garantie' => $request->garantie,
+                    'statut_demande' => 'EN_ATTENTE',
+                    'date_soumission' => now()->toDateString(),
+                ]);
+    
+                // 2. Création du garant rattaché si les informations ont été saisies
+                if ($request->has('garant') && !empty($request->garant['nom'])) {
+                    $demande->garant()->create($request->garant);
+                }
+    
+                return $demande->load('garant');
+            });
+    
+            return response()->json($resultat, 201);
+    
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur lors de la création : ' . $e->getMessage()], 500);
         }
-
-        $demande = DemandeCredit::create(array_merge($validated, [
-            'statut_demande'  => 'EN_ATTENTE',
-            'date_soumission' => now(),
-        ]));
-
-        return response()->json($demande->load('client.personne', 'produitCredit'), 201);
     }
-
     public function show(DemandeCredit $demandeCredit): JsonResponse
     {
         $demandeCredit->load(['client.personne', 'produitCredit.frais', 'employe.personne', 'pret']);

@@ -15,6 +15,7 @@ use App\Http\Controllers\api\EcheanceController;
 use App\Http\Controllers\api\PaiementController;
 use App\Http\Controllers\api\AlerteController;
 use App\Http\Controllers\api\DashboardController;
+use App\Http\Controllers\api\Vision360Controller;
 // ─────────────────────────────────────────────
 // Auth (public)
 // ─────────────────────────────────────────────
@@ -38,14 +39,17 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
 // Route accessible par d'autres rôles (ex: agents de crédit qui ont besoin de voir la liste)
 Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
     Route::get('produits', [ProduitCreditController::class, 'index']);
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+
 });
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
-
-    // Auth
-    Route::post('auth/logout', [AuthController::class, 'logout']);
+    //vision 360
+    Route::get('/vision360', [Vision360Controller::class, 'index']);
+    Route::get('/vision360/search', [Vision360Controller::class, 'search']);
+    Route::get('/vision360/{id}', [Vision360Controller::class, 'show']);
+        Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me',      [AuthController::class, 'me']);
 
     // Personnes
@@ -104,7 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('demande-credits/{demandeCredit}/approuver',     [DemandeCreditController::class, 'approuver']);
     Route::post('demande-credits/{demandeCredit}/rejeter',       [DemandeCreditController::class, 'rejeter']);
     Route::apiResource('demande-credits', DemandeCreditController::class);
-
+    Route::get('clients/options', [ClientController::class, 'options']);
+    Route::get('produits-credits/options', [ProduitCreditController::class, 'options']);
     // Prêts
     Route::get('prets/{pret}/echeancier',   [PretController::class, 'echeancier']);
     Route::get('prets/{pret}/solde-restant',[PretController::class, 'soldeRestant']);

@@ -13,15 +13,31 @@ class EmployeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Employe::with(['personne', 'superviseur']);
+        // On charge la relation 'personne' et 'superviseur'
+        $query = Employe::with(['personne', 'superviseur.personne']);
 
-        if ($request->filled('role')) {
-            $query->where('role', $request->role);
+        // ── 1. AJOUT DU BLOC DE RECHERCHE ──────────────────────────────────
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                // Recherche sur le nom d'utilisateur ou le rôle de l'employé
+                $q->where('nom_utilisateur', 'LIKE', "%{$search}%")
+                  ->orWhere('role', 'LIKE', "%{$search}%")
+                  
+                  // Recherche croisée dans la table 'personnes' (Nom et Prénom)
+                  ->orWhereHas('personne', function ($q2) use ($search) {
+                      $q2->where('nom', 'LIKE', "%{$search}%")
+                         ->orWhere('prenom', 'LIKE', "%{$search}%")
+                         ->orWhere('email', 'LIKE', "%{$search}%");
+                  });
+            });
         }
+        // ───────────────────────────────────────────────────────────────────
 
+        // Conserve votre pagination actuelle (ex: 20 par page)
         return response()->json($query->paginate(20));
     }
-
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([

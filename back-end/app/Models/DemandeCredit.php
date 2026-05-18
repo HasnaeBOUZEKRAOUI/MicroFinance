@@ -61,7 +61,10 @@ class DemandeCredit extends Model
     {
         return $this->hasOne(Pret::class);
     }
-
+    public function garant()
+    {
+        return $this->hasOne(Garant::class, 'demande_credit_id');
+    }
     // -------------------------------------------------------------------------
     // Scopes
     // -------------------------------------------------------------------------

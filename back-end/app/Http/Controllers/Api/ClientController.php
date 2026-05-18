@@ -335,4 +335,21 @@ class ClientController extends Controller
 
         return response()->json(['message' => 'Fichier uploadé.', 'chemin' => $chemin]);
     }
+public function options(): JsonResponse
+{
+    // On récupère l'id du client et son identité associée
+    $clients = Client::with('personne:id,nom,prenom')
+        ->select('id', 'code_client', 'nil')
+        ->get()
+        ->map(function ($client) {
+            return [
+                'id' => $client->id,
+                'label' => ($client->personne 
+                    ? "{$client->personne->prenom} {$client->personne->nom}" 
+                    : "Client #{$client->id}") . " (" . ($client->code_client ?? $client->nil) . ")"
+            ];
+        });
+
+    return response()->json($clients);
+}
 }
