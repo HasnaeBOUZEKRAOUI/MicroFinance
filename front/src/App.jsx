@@ -12,6 +12,7 @@ import Vision360Page from './pages/Vision360Page';
 import ProduitsPage from './pages/produits/ProduitsPage';
 import AlertesPage from './pages/alertes/AlertesPage';
 import Dashboard from './pages/dashboards/Dashboard';
+import DemandeDetailsPage from './pages/demandes/DemandeDetailsPage';
 
 function App() {
   const { user, loading } = useAuth();
@@ -43,10 +44,10 @@ function App() {
 
               {/* ── Routes Protégées Générales ── */}
               <Route path="/vision360Page" element={user ? <Vision360Page /> : <Navigate to="/login" />} />
-              <Route path="/clients/:id" element={user ? <Vision360Page /> : <Navigate to="/login" />} />            
               <Route path="/clients"   element={user ? <ClientsPage />   : <Navigate to="/login" />} />
               <Route path="/prets"     element={user ? <PretsPage />     : <Navigate to="/login" />} />
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />
+              <Route path="/demandes/:id" element={user?<DemandeDetailsPage /> : <Navigate to="/login" />} />
               <Route path="/paiements" element={user ? <PaiementsPage /> : <Navigate to="/login" />} />
               <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
 

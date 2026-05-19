@@ -12,7 +12,7 @@ export const clientsApi = {
   delete:  (id)     => api.delete(`/clients/${id}`),
   prets:   (id)     => api.get(`/clients/${id}/historique-prets`),
   blacklist:(id)    => api.get(`/clients/${id}/blacklist`),
-  options: () => api.get('/clients/options').then(res => res.data),
+  options: () => api.get('/clients/options'),
 }
 
 // ── Employés ─────────────────────────────────────
@@ -71,7 +71,7 @@ export const produitsApi = {
   create: (data)   => api.post('/produits', data),
   update: (id, d)  => api.put(`/produits/${id}`, d),
   delete: (id)     => api.delete(`/produits/${id}`),
-  options: () => api.get('/produits-credits/options').then(res => res.data),
+  options: ()      => api.get('/produits-credits/options'),
 
 }
 export const vision360Api = {

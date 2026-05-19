@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Garant extends Model
 {
+    protected $table = 'garants';
+
     protected $fillable = [
         'demande_credit_id',
         'nom',

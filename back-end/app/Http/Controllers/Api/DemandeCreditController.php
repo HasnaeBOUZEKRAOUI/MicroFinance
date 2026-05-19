@@ -8,12 +8,13 @@ use App\Models\Employe;
 use App\Models\Garant;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class DemandeCreditController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = DemandeCredit::with(['client.personne', 'produitCredit', 'employe.personne']);
+        $query = DemandeCredit::with(['client.personne', 'produitCredit', 'employe.personne', 'garant']);
 
         if ($request->filled('statut')) {
             $query->where('statut_demande', $request->statut);
@@ -34,7 +35,7 @@ class DemandeCreditController extends Controller
     {
         $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'produit_credit_id' => 'required|exists:produits_credits,id',
+            'produit_credit_id' => 'required|exists:produit_credits,id',
             'montant_demande' => 'required|numeric|min:0',
             'duree_demandee' => 'required|integer|min:1',
             'objet_pret' => 'required|string',

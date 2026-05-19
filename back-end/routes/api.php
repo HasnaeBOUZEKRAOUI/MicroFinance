@@ -44,6 +44,7 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('clients/options', [ClientController::class, 'options']);
 
     //vision 360
     Route::get('/vision360', [Vision360Controller::class, 'index']);
@@ -93,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('comptes/{compte}/debiter',  [CompteController::class, 'debiter']);
     Route::post('comptes/{compte}/crediter', [CompteController::class, 'crediter']);
     Route::apiResource('comptes', CompteController::class);
+    Route::apiResource('clients', ClientController::class);
 
     // Produits Crédit
     Route::post('produit-credits/{produitCredit}/valider', [ProduitCreditController::class, 'valider']);
@@ -108,7 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('demande-credits/{demandeCredit}/approuver',     [DemandeCreditController::class, 'approuver']);
     Route::post('demande-credits/{demandeCredit}/rejeter',       [DemandeCreditController::class, 'rejeter']);
     Route::apiResource('demande-credits', DemandeCreditController::class);
-    Route::get('clients/options', [ClientController::class, 'options']);
+    
     Route::get('produits-credits/options', [ProduitCreditController::class, 'options']);
     // Prêts
     Route::get('prets/{pret}/echeancier',   [PretController::class, 'echeancier']);

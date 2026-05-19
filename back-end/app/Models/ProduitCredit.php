@@ -14,6 +14,7 @@ class ProduitCredit extends Model
     protected $table = 'produit_credits';
 
     protected $fillable = [
+        
         'type_produit',
         'famille_produit',
         'montant_min',

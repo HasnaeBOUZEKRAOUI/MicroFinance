@@ -134,13 +134,14 @@ class ProduitCreditController extends Controller
     }
     public function options(): JsonResponse
 {
-    $produits = ProduitCredit::select('id','type_produit', 'famille_produit')
+    $produits = ProduitCredit::select('id','type_produit', 'famille_produit','montant_min',
+        'montant_max')
         ->where('actif', true) // optionnel : si vous gérez l'activation
         ->get()
         ->map(function ($p) {
             return [
                 'id' => $p->id,
-                'label' => "{$p->type_produit}-{$p->famille_produit}",
+                'label' => "{$p->type_produit}-{$p->famille_produit} (Min: {$p->montant_min}, Max: {$p->montant_max})", 
             ];
         });
 

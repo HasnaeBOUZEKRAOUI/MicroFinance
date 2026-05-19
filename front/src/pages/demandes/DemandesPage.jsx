@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback ,useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Plus, Eye, CheckCircle, XCircle, FileText, Clock, 
-  ThumbsUp, ThumbsDown, UserPlus, ShieldCheck 
+  ThumbsUp, ThumbsDown, UserPlus, ShieldCheck ,Pencil, Trash2 
 } from 'lucide-react'
+
 import { demandesApi, clientsApi, produitsApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant } from '../../utils/helpers'
@@ -60,17 +61,46 @@ function AjouterGarantModal({ open, onClose, onSave, initialGarant }) {
 }
 
 // ── 2. FORMULAIRE PRINCIPAL DE DEMANDE DE CRÉDIT ─────────────────────────────────
-function DemandeForm({ onSave, loading, error }) {
+function DemandeForm({ onSave, loading, error ,initialData}) {
   const [f, setF] = useState({
     client_id: '', produit_credit_id: '', montant_demande: '',
     duree_demandee: '', objet_pret: '', garantie: '',
   })
   const [garant, setGarant] = useState(null)
+  useEffect(() => {
+    if (initialData) {
+      setF({
+        client_id: initialData.client_id ?? '',
+        produit_credit_id: initialData.produit_credit_id ?? '',
+        montant_demande: initialData.montant_demande ?? '',
+        duree_demandee: initialData.duree_demandee ?? '',
+        objet_pret: initialData.objet_pret ?? '',
+        garantie: initialData.garantie ?? '',
+      })
+      if (initialData.garant) {
+        setGarant({
+          nom: initialData.garant.nom ?? '',
+          prenom: initialData.garant.prenom ?? '',
+          cin: initialData.garant.cin ?? '',
+          telephone: initialData.garant.telephone ?? '',
+          revenu_mensuel: initialData.garant.revenu_mensuel ?? '',
+          relation_client: initialData.garant.relation_client ?? '',
+        })
+      } else {
+        setGarant(null)
+      }
+    }
+  }, [initialData])
+
   const [showGarantModal, setShowGarantModal] = useState(false)
 
-  // Chargement des listes de sélection depuis l'API globale
-  const { data: clientOptions, loading: loadingClients } = useApi(clientsApi.options)
-  const { data: produitOptions, loading: loadingProduits } = useApi(produitsApi.options)
+  // Chargement des listes via le hook useApi
+  const { data: clientData, loading: loadingClients } = useApi(clientsApi.options)
+  const { data: produitData, loading: loadingProduits } = useApi(produitsApi.options)
+
+  // Sécurité pour extraire le tableau d'options peu importe la structure du hook
+  const clientOptions = Array.isArray(clientData) ? clientData : (clientData?.data ?? [])
+  const produitOptions = Array.isArray(produitData) ? produitData : (produitData?.data ?? [])
 
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -94,7 +124,7 @@ function DemandeForm({ onSave, loading, error }) {
           ) : (
             <select className="input" value={f.client_id} onChange={set('client_id')} required>
               <option value="">-- Choisir un client --</option>
-              {clientOptions?.map(c => (
+              {clientOptions.map(c => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
@@ -111,7 +141,7 @@ function DemandeForm({ onSave, loading, error }) {
           ) : (
             <select className="input" value={f.produit_credit_id} onChange={set('produit_credit_id')} required>
               <option value="">-- Choisir un produit --</option>
-              {produitOptions?.map(p => (
+              {produitOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
@@ -139,7 +169,7 @@ function DemandeForm({ onSave, loading, error }) {
         </div>
       </div>
 
-      {/* Section interactive d'affectation de la Caution solidaire (Garant) */}
+      {/* Section interactive du Garant */}
       <div className="p-4 bg-surface-50 rounded-xl border border-surface-100 mt-2 flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-surface-900">Caution solidaire (Garant personnel)</p>
@@ -163,7 +193,6 @@ function DemandeForm({ onSave, loading, error }) {
     </form>
   )
 }
-
 function RejetModal({ open, onClose, onConfirm, loading }) {
   const [motif, setMotif] = useState('')
   return (
@@ -182,14 +211,15 @@ function RejetModal({ open, onClose, onConfirm, loading }) {
 }
 
 // ── 3. COMPOSANT DE LA PAGE PRINCIPALE ───────────────────────────────────────────
+
 export default function DemandesPage() {
   const navigate = useNavigate()
-  const [page, setPage]         = useState(1)
-  const [statut, setStatut]     = useState('')
-  const [modal, setModal]       = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [saving, setSaving]     = useState(false)
-  const [saveErr, setSaveErr]   = useState('')
+  const [page, setPage] = useState(1)
+  const [statut, setStatut] = useState('')
+  const [modal, setModal] = useState(null)     // 'create', 'edit', 'rejeter'
+  const [selected, setSelected] = useState(null) // Stocke la demande active pour edit/rejeter
+  const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
 
   const fetcher = useCallback(() => demandesApi.list({ page, statut: statut || undefined }), [page, statut])
   const { data, loading, error, execute: refresh } = useApi(fetcher, [page, statut])
@@ -197,11 +227,34 @@ export default function DemandesPage() {
 
   const closeModal = () => { setModal(null); setSaveErr(''); setSelected(null) }
 
-  const handleCreate = async (form) => {
+  // Gestion de la création ET de la modification
+  const handleSave = async (form) => {
     setSaving(true); setSaveErr('')
-    try { await demandesApi.create(form); closeModal(); refresh() }
-    catch (e) { setSaveErr(e.response?.data?.message || 'Erreur lors de la soumission.') }
-    finally { setSaving(false) }
+    try {
+      if (modal === 'edit') {
+        await demandesApi.update(selected.id, form)
+      } else {
+        await demandesApi.create(form)
+      }
+      closeModal()
+      refresh()
+    } catch (e) {
+      setSaveErr(e.response?.data?.message || 'Erreur lors de la soumission.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Action de suppression
+  const handleDelete = async (id) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette demande ?')) {
+      try {
+        await demandesApi.delete(id)
+        refresh()
+      } catch (e) {
+        alert(e.response?.data?.message || 'Erreur lors de la suppression.')
+      }
+    }
   }
 
   const handleApprouver = async (d) => {
@@ -226,11 +279,12 @@ export default function DemandesPage() {
         action={<button className="btn-primary" onClick={() => setModal('create')}><Plus size={16} /> Nouvelle demande</button>}
       />
 
+      {/* Bloc statistiques corrigé */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total" value={data?.meta?.total ?? '—'} icon={FileText} color="brand" />
-        <StatCard label="En attente" value={data?.meta?.total ? demandes.filter(d => d.statut_demande === 'EN_ATTENTE').length : '—'} icon={Clock} color="amber" />
-        <StatCard label="Approuvées" value={data?.meta?.total ? demandes.filter(d => d.statut_demande === 'APPROUVEE').length : '—'} icon={ThumbsUp} color="blue" />
-        <StatCard label="Rejetées"   value={data?.meta?.total ? demandes.filter(d => d.statut_demande === 'REJETEE').length : '—'}  icon={ThumbsDown} color="red" />
+        <StatCard label="Total" value={data?.total ?? data?.meta?.total ?? '—'} icon={FileText} color="brand" />
+        <StatCard label="En attente" value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'EN_ATTENTE').length : '—'} icon={Clock} color="amber" />
+        <StatCard label="Approuvées" value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'APPROUVEE').length : '—'} icon={ThumbsUp} color="blue" />
+        <StatCard label="Rejetées"   value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'REJETEE').length : '—'}  icon={ThumbsDown} color="red" />
       </div>
 
       <div className="card p-0">
@@ -264,7 +318,18 @@ export default function DemandesPage() {
                     <td className="td py-3 px-4"><Badge statut={d.statut_demande} /></td>
                     <td className="td py-3 px-4">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => navigate(`/demandes/${d.id}`)} className="p-1.5 rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-colors" title="Voir"><Eye size={14} /></button>
+                        {/* Bouton de consultation standard */}
+                        <button onClick={() => navigate(`/demandes/${d.id}`)} className="p-1.5 rounded-lg hover:bg-surface-100 transition-colors" title="Voir"><Eye size={14} /></button>
+                        
+                        {/* Actions d'édition et de suppression : Uniquement autorisées si la demande est EN_ATTENTE */}
+                        {d.statut_demande === 'EN_ATTENTE' && (
+                          <>
+                            <button onClick={() => { setSelected(d); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Modifier"><Pencil size={14} /></button>
+                            <button onClick={() => handleDelete(d.id)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors" title="Supprimer"><Trash2 size={14} /></button>
+                          </>
+                        )}
+
+                        {/* Actions spécifiques à l'analyse */}
                         {d.statut_demande === 'EN_COURS_ANALYSE' && <>
                           <button onClick={() => handleApprouver(d)} className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-colors" title="Approuver"><CheckCircle size={14} /></button>
                           <button onClick={() => { setSelected(d); setModal('rejeter') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors" title="Rejeter"><XCircle size={14} /></button>
@@ -280,9 +345,11 @@ export default function DemandesPage() {
         <div className="px-5 pb-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
       </div>
 
-      <Modal open={modal === 'create'} onClose={closeModal} title="Nouvelle demande de crédit" size="lg">
-        <DemandeForm onSave={handleCreate} loading={saving} error={saveErr} />
+      {/* Modal unique de création et modification */}
+      <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal} title={modal === 'edit' ? "Modifier la demande de crédit" : "Nouvelle demande de crédit"} size="lg">
+        <DemandeForm onSave={handleSave} loading={saving} error={saveErr} initialData={selected} />
       </Modal>
+
       <RejetModal open={modal === 'rejeter'} onClose={closeModal} onConfirm={handleRejeter} loading={saving} />
     </div>
   )
