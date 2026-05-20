@@ -13,7 +13,7 @@ export const clientsApi = {
   prets:   (id)     => api.get(`/clients/${id}/historique-prets`),
   blacklist:(id)    => api.get(`/clients/${id}/blacklist`),
   options: () => api.get('/clients/options'),
-}
+  portefeuille: (id, config = {}) => api.get(`/clients/${id}/portefeuille`, config),}
 
 // ── Employés ─────────────────────────────────────
 export const employesApi = {
@@ -31,8 +31,8 @@ export const demandesApi = {
   create:       (data)      => api.post('/demande-credits', data),
   update:       (id, d)     => api.put(`/demande-credits/${id}`, d),
   delete:       (id)        => api.delete(`/demande-credits/${id}`),
-  affecter:     (id, data)  => api.post(`/demande-credits/${id}/affecter`, data),
-  evaluerRisque:(id)        => api.post(`/demande-credits/${id}/evaluer-risque`),
+  affecter: (id, data) => api.post(`/demande-credits/${id}/affecter`, data),
+    evaluerRisque:(id)        => api.post(`/demande-credits/${id}/evaluer-risque`),
   approuver:    (id)        => api.post(`/demande-credits/${id}/approuver`),
   rejeter:      (id, data)  => api.post(`/demande-credits/${id}/rejeter`, data),
 }

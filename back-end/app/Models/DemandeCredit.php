@@ -17,6 +17,7 @@ class DemandeCredit extends Model
         'client_id',
         'produit_credit_id',
         'employe_id',
+        'manager_id',
         'montant_demande',
         'duree_demandee',
         'objet_pret',

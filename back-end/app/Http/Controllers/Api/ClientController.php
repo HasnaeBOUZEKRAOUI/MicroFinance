@@ -352,4 +352,65 @@ public function options(): JsonResponse
 
     return response()->json($clients);
 }
+public function portefeuille(Request $request, $id)
+{
+    try {
+        // 1. On récupère le client courant pour identifier l'employé (l'agent) associé
+        $clientCourant = Client::findOrFail($id);
+        $employeId = $clientCourant->employe_id; // Clé exacte de ton modèle
+
+        if (!$employeId) {
+            return response()->json(['data' => []]);
+        }
+
+        // 2. On cible tous les clients appartenant au même employé
+        // On utilise 'clients.employe_id' pour éviter toute ambiguïté SQL
+        $query = Client::where('clients.employe_id', $employeId);
+
+        // 3. Application des tris selon tes colonnes réelles
+        if ($request->has('tri')) {
+            switch ($request->query('tri')) {
+                case 'age':
+                    // L'âge dépend de 'date_naissance' qui est dans la table 'personnes'
+                    $query->join('personnes', 'clients.personne_id', '=', 'personnes.id')
+                          ->orderBy('personnes.date_naissance', 'asc'); // Du plus âgé au plus jeune
+                    break;
+                    
+                case 'genre':
+                    // Le genre est directement dans ta table 'clients' d'après ton $fillable
+                    $query->orderBy('clients.genre', 'asc');
+                    break;
+                    
+                case 'secteur':
+                    // La colonne exacte de ton modèle est 'secteur_activite'
+                    $query->orderBy('clients.secteur_activite', 'asc');
+                    break;
+                    
+                case 'famille':
+                    // La colonne exacte de ton modèle est 'situation_familiale'
+                    $query->orderBy('clients.situation_familiale', 'asc');
+                    break;
+            }
+        }
+
+        // 4. Sécurisation du select pour ne récupérer que les attributs du client
+        // Tout en chargeant proprement la relation 'personne'
+        $clients = $query->select('clients.*')
+                         ->with('personne')
+                         ->get();
+
+        return response()->json([
+            'data' => $clients
+        ]);
+
+    } catch (\Exception $e) {
+        // Si un autre problème survient, ceci t'évitera la page blanche 500 
+        // en te crachant l'erreur SQL directement dans la console React
+        return response()->json([
+            'error' => 'Erreur SQL / PHP',
+            'message' => $e->getMessage(),
+            'line' => $e->getLine()
+        ], 500);
+    }
+}
 }

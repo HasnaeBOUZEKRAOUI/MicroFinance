@@ -1,35 +1,82 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Eye, Search } from 'lucide-react'
-import { pretsApi } from '../../api/services'
+import { Plus, Eye } from 'lucide-react'
+import { pretsApi, demandesApi } from '../../api/services' // 👈 Importation de demandesApi
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant, formatTaux } from '../../utils/helpers'
 import { PageHeader, Badge, Modal, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
 import { CreditCard, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
 
+// ─── COMPOSANT FORMULAIRE (AVEC SELECT DE DEMANDES APPROUVÉES) ───────────────
 function PretForm({ onSave, loading, error }) {
   const [f, setF] = useState({
     demande_credit_id: '', montant_accorde: '',
     date_debut: '', taux_interet: '', periode_grace: '0',
   })
+  const [demandesApprouvees, setDemandesApprouvees] = useState([])
+  const [loadingDemandes, setLoadingDemandes] = useState(false)
+
+  // Chargement des demandes approuvées au montage du formulaire
+  useEffect(() => {
+    const fetchDemandes = async () => {
+      setLoadingDemandes(true)
+      try {
+        // On filtre par statut APPROUVEE (adapte la clé ou la valeur selon ton API Laravel)
+        const res = await demandesApi.list({ statut: 'APPROUVEE', per_page: 100 })
+        setDemandesApprouvees(res.data?.data || res.data || [])
+      } catch (err) {
+        console.error("Erreur lors de la récupération des demandes approuvées", err)
+      } finally {
+        setLoadingDemandes(false)
+      }
+    }
+    fetchDemandes()
+  } // eslint-disable-next-line react-hooks/exhaustive-deps
+  , [])
+
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+
   return (
     <form onSubmit={e => { e.preventDefault(); onSave(f) }} className="space-y-4">
       <ErrorAlert message={error} />
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="label">ID Demande approuvée *</label><input className="input" type="number" value={f.demande_credit_id} onChange={set('demande_credit_id')} required /></div>
+        
+        {/* Remplacement de l'input par un Select */}
+        <div className="col-span-2 md:col-span-1">
+          <label className="label">Demande approuvée *</label>
+          <select 
+            className="input text-sm" 
+            value={f.demande_credit_id} 
+            onChange={set('demande_credit_id')} 
+            required
+            disabled={loadingDemandes}
+          >
+            <option value="">
+              {loadingDemandes ? 'Chargement des demandes...' : '── Choisir une demande approuvée ──'}
+            </option>
+            {demandesApprouvees.map(d => (
+              <option key={d.id} value={d.id}>
+                N°{d.id} - {d.client?.personne?.prenom} {d.client?.personne?.nom} ({formatMontant(d.montant_demande)})
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div><label className="label">Montant accordé (MAD) *</label><input className="input" type="number" step="0.01" value={f.montant_accorde} onChange={set('montant_accorde')} required /></div>
         <div><label className="label">Date de début *</label><input className="input" type="date" value={f.date_debut} onChange={set('date_debut')} required /></div>
         <div><label className="label">Taux d'intérêt annuel *</label><input className="input" type="number" step="0.0001" min="0" max="1" placeholder="ex: 0.1200" value={f.taux_interet} onChange={set('taux_interet')} required /></div>
         <div><label className="label">Période de grâce (mois)</label><input className="input" type="number" min="0" value={f.periode_grace} onChange={set('periode_grace')} /></div>
       </div>
       <div className="flex justify-end pt-2">
-        <button className="btn-primary" disabled={loading}>{loading ? '…' : 'Décaisser le prêt'}</button>
+        <button className="btn-primary" disabled={loading || loadingDemandes}>
+          {loading ? '…' : 'Décaisser le prêt'}
+        </button>
       </div>
     </form>
   )
 }
 
+// ─── COMPOSANT PRINCIPAL (PAGE DES PRÊTS) ────────────────────────────────────
 export default function PretsPage() {
   const navigate = useNavigate()
   const [page, setPage]         = useState(1)
@@ -70,9 +117,9 @@ export default function PretsPage() {
 
       <div className="grid grid-cols-4 gap-4 mb-6">
         <StatCard label="Total prêts"  value={data?.meta?.total ?? '—'} icon={CreditCard}    color="brand" />
-        <StatCard label="En cours"     value={stats.enCours}            icon={TrendingUp}     color="blue" />
-        <StatCard label="En retard"    value={stats.enRetard}           icon={AlertTriangle}  color="red" />
-        <StatCard label="Soldés"       value={stats.soldes}             icon={CheckCircle}    color="brand" />
+        <StatCard label="En cours"     value={stats.enCours}             icon={TrendingUp}     color="blue" />
+        <StatCard label="En retard"    value={stats.enRetard}            icon={AlertTriangle}  color="red" />
+        <StatCard label="Soldés"       value={stats.soldes}              icon={CheckCircle}    color="brand" />
       </div>
 
       <div className="card p-0">
@@ -89,13 +136,14 @@ export default function PretsPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>{['Référence', 'Client', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', ''].map(h => <th key={h} className="th">{h}</th>)}</tr>
+                <tr>{['Référence', 'Client', 'Montant demandé', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', ''].map(h => <th key={h} className="th">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {prets.map(p => (
                   <tr key={p.id} className="table-row">
                     <td className="td font-mono text-xs font-medium text-brand-700">{p.reference}</td>
                     <td className="td">{p.demande_credit?.client?.personne?.prenom} {p.demande_credit?.client?.personne?.nom}</td>
+                    <td className="td font-mono text-xs">{formatMontant(p.demande_credit?.montant_demande)}</td>
                     <td className="td font-mono text-xs">{formatMontant(p.montant_accorde)}</td>
                     <td className="td text-xs">{formatTaux(p.taux_interet)}</td>
                     <td className="td text-xs">{formatDate(p.date_debut)}</td>

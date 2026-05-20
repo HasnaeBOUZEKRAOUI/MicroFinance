@@ -111,8 +111,22 @@ class Employe extends Authenticatable
         $demande->save();
     }
 
-    public function gererCaisse(): bool
-    {
-        return in_array($this->role, ['CAISSIER', 'ADMIN']);
-    }
+   // Dans ton modèle Employe.php
+
+public function mouvementsCaisse()
+{
+    return $this->hasMany(MouvementCaisse::class, 'employe_id');
+}
+
+/**
+ * Calcule le montant actuel disponible dans la caisse de l'employé
+ */
+public function getMontantCaisseAttribute(): float
+{
+    $entrees = $this->mouvementsCaisse()->where('type_mouvement', 'ENTREE')->sum('montant');
+    $sorties = $this->mouvementsCaisse()->where('type_mouvement', 'SORTIE')->sum('montant');
+    
+    return (float) ($entrees - $sorties);
+}
+
 }

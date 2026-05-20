@@ -14,8 +14,9 @@ return new class extends Migration
             $table->foreignId('superviseur_id')->nullable()->constrained('employes')->onDelete('set null');
             $table->string('nom_utilisateur')->unique();
             $table->string('mot_de_passe');
-            $table->enum('role', ['ADMIN', 'AGENT_CREDIT', 'CAISSIER', 'DIRECTEUR', 'SUPERVISEUR']);
+            $table->enum('role', ['ADMIN', 'AGENT_CREDIT', 'MANAGER', 'SUPERVISEUR']);
             $table->date('date_embauche');
+            $table->string('num_caisse')->nullable()->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

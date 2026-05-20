@@ -13,6 +13,7 @@ import ProduitsPage from './pages/produits/ProduitsPage';
 import AlertesPage from './pages/alertes/AlertesPage';
 import Dashboard from './pages/dashboards/Dashboard';
 import DemandeDetailsPage from './pages/demandes/DemandeDetailsPage';
+import PretDetailPage from './pages/prets/PretDetailPage';
 
 function App() {
   const { user, loading } = useAuth();
@@ -46,6 +47,7 @@ function App() {
               <Route path="/vision360Page" element={user ? <Vision360Page /> : <Navigate to="/login" />} />
               <Route path="/clients"   element={user ? <ClientsPage />   : <Navigate to="/login" />} />
               <Route path="/prets"     element={user ? <PretsPage />     : <Navigate to="/login" />} />
+              <Route path="/prets/:id" element={user ? <PretDetailPage /> : <Navigate to="/login" />} />
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />
               <Route path="/demandes/:id" element={user?<DemandeDetailsPage /> : <Navigate to="/login" />} />
               <Route path="/paiements" element={user ? <PaiementsPage /> : <Navigate to="/login" />} />
@@ -62,9 +64,9 @@ function App() {
               />
               <Route 
                 path="/produits"  
-                element={user && user.role === 'ADMIN' ? <ProduitsPage /> : <Navigate to={getHomeRedirect()} replace />} 
+                element={user && user.role === 'ADMIN' || 'MANAGER' ?<ProduitsPage /> : <Navigate to={getHomeRedirect()} replace />} 
               />
-
+              
               {/* ── Redirections et Erreurs ── */}
               <Route path="/" element={<Navigate to={getHomeRedirect()} replace />} />
               <Route path="*" element={<div className="card p-8 text-center text-sm font-medium text-surface-800/60">Page non trouvée</div>} />

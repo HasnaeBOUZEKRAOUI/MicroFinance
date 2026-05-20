@@ -37,7 +37,7 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
 });
 
 // Route accessible par d'autres rôles (ex: agents de crédit qui ont besoin de voir la liste)
-Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:ADMIN,MANAGER'])->group(function () {
     Route::get('produits', [ProduitCreditController::class, 'index']);
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
 
@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Clients ─────────────────────────────────────────────────────
     // Actions métier
+    Route::get('clients/{client}/portefeuille', [ClientController::class, 'portefeuille']); 
     Route::get ('clients/{client}/historique-prets',       [ClientController::class, 'historiquePrets']);
     Route::get ('clients/{client}/blacklist',              [ClientController::class, 'blacklist']);
     Route::get ('clients/{client}/comptes',                [ClientController::class, 'comptes']);
@@ -105,8 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('produit-credits.frais', FraisController::class)->shallow();
 
     // Demandes de Crédit
-    Route::post('demande-credits/{demandeCredit}/affecter',      [DemandeCreditController::class, 'affecter']);
-    Route::post('demande-credits/{demandeCredit}/evaluer-risque',[DemandeCreditController::class, 'evaluerRisque']);
+    Route::post('/demande-credits/{id}/affecter', [DemandeCreditController::class, 'prendreEnCharge']);    Route::post('demande-credits/{demandeCredit}/evaluer-risque',[DemandeCreditController::class, 'evaluerRisque']);
     Route::post('demande-credits/{demandeCredit}/approuver',     [DemandeCreditController::class, 'approuver']);
     Route::post('demande-credits/{demandeCredit}/rejeter',       [DemandeCreditController::class, 'rejeter']);
     Route::apiResource('demande-credits', DemandeCreditController::class);

@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Briefcase, ShieldCheck, FileText, Calendar, DollarSign, Clock } from 'lucide-react'
-import { Spinner } from '../../components/ui'
+import { Spinner ,Badge ,ErrorAlert} from '../../components/ui'
+import { demandesApi } from '../../api/services'
+const formatDate = (dateString) => {
+    if (!dateString) return '—'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+  const formatMontant = (montant) => {
+    if (!montant) return '—'
+    return new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(montant)
+  }
 export default function DemandeDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -9,6 +19,7 @@ export default function DemandeDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  
   useEffect(() => {
     setLoading(true)
     demandesApi.get(id)

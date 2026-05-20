@@ -63,6 +63,7 @@ class DemandeCreditController extends Controller
                     'garantie' => $request->garantie,
                     'statut_demande' => 'EN_ATTENTE',
                     'date_soumission' => now()->toDateString(),
+                    'employe_id' => auth()->id(), // <-- Injecte ici l'ID de l'agent connecté
                 ]);
     
                 // 2. Création du garant rattaché si les informations ont été saisies
@@ -81,7 +82,7 @@ class DemandeCreditController extends Controller
     }
     public function show(DemandeCredit $demandeCredit): JsonResponse
     {
-        $demandeCredit->load(['client.personne', 'produitCredit.frais', 'employe.personne', 'pret']);
+        $demandeCredit->load(['client.personne', 'produitCredit.frais', 'employe.personne', 'pret','garant']);
 
         return response()->json($demandeCredit);
     }
@@ -121,18 +122,23 @@ class DemandeCreditController extends Controller
     }
 
     /** Affecter un agent à la demande */
-    public function affecter(Request $request, DemandeCredit $demandeCredit): JsonResponse
+    public function prendreEnCharge(Request $request, $id)
     {
-        $validated = $request->validate([
-            'employe_id' => 'required|exists:employes,id',
+        $demande = DemandeCredit::findOrFail($id);
+    
+        // Sécurité : Éviter qu'un dossier déjà traité soit ré-analysé
+        if ($demande->statut_demande !== 'EN_ATTENTE') {
+            return response()->json(['message' => 'Ce dossier est déjà en cours de traitement ou clôturé.'], 400);
+        }
+    
+        $demande->update([
+            'manager_id' => $request->employe_id, // Enregistre l'ID du manager connecté
+            'statut_demande' => 'EN_COURS_ANALYSE' // Passe directement à l'analyse
         ]);
-
-        $agent = Employe::findOrFail($validated['employe_id']);
-        $demandeCredit->affecter($agent);
-
+    
         return response()->json([
-            'message' => "Demande affectée à {$agent->nom_complet}.",
-            'demande' => $demandeCredit->load('employe.personne'),
+            'message' => 'Dossier pris en charge avec succès pour analyse.',
+            'data' => $demande
         ]);
     }
 
@@ -179,4 +185,5 @@ class DemandeCreditController extends Controller
 
         return response()->json(['message' => 'Demande rejetée.', 'demande' => $demandeCredit]);
     }
+   
 }

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('client_id')->constrained('clients')->onDelete('restrict');
             $table->foreignId('produit_credit_id')->constrained('produit_credits')->onDelete('restrict');
             $table->foreignId('employe_id')->nullable()->constrained('employes')->onDelete('set null')->comment('Agent traitant');
+            $table->foreignId('manager_id')->nullable()->constrained('employes'); // Le manager qui analyse
             $table->decimal('montant_demande', 15, 2);
             $table->integer('duree_demandee')->comment('Durée en mois');
             $table->string('objet_pret')->comment('Motif / objet du prêt');
@@ -26,7 +27,6 @@ return new class extends Migration
                 'ANNULEE',
                 'DECAISSEE'
             ])->default('EN_ATTENTE');
-            $table->decimal('score_risque', 5, 2)->nullable()->comment('Score de risque calculé');
             $table->text('motif_rejet')->nullable();
             $table->timestamp('date_soumission')->useCurrent();
             $table->timestamp('date_decision')->nullable();

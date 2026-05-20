@@ -13,8 +13,8 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard Admin', icon: LayoutDashboard ,roles: ['ADMIN'] }, // Visible par Admin et Agent de crédit
   { to: '/clients',   label: 'Clients',   icon: Users, roles: ['AGENT_CREDIT'] },
   { to: '/employes',  label: 'Employés',  icon: UserCheck, roles: ['ADMIN'] }, // Uniquement Admin
-  { to: '/demandes',  label: 'Demandes de crédit', icon: FileText, roles: ['AGENT_CREDIT'] },
-  { to: '/produits',  label: 'Produits',  icon: FileText, roles: ['ADMIN'] }, // Uniquement Admin
+  { to: '/demandes',  label: 'Demandes de crédit', icon: FileText, roles: ['AGENT_CREDIT','MANAGER'] },
+  { to: '/produits',  label: 'Produits',  icon: FileText, roles: ['ADMIN','MANAGER'] }, // Uniquement Admin
   { to: '/prets',     label: 'Prêts',     icon: CreditCard, roles: [ 'AGENT_CREDIT'] },
   { to: '/paiements', label: 'Paiements', icon: DollarSign, roles: ['AGENT_CREDIT'] },
   { to: '/alertes',   label: 'Alertes',   icon: Bell },

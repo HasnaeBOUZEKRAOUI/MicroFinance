@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Plus, Search, Pencil, Trash2, Layers, Calendar } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Layers } from 'lucide-react'
 import { produitsApi } from '../../api/services' 
 import { useApi } from '../../hooks/useApi'
-import { formatDate } from '../../utils/helpers' // On importe formatDate pour le tableau
+import { useAuth } from '../../context/AuthContext' 
+import { formatDate } from '../../utils/helpers'
 import { PageHeader, Modal, ConfirmDialog, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
 
 const MODES = ['CONSTANT', 'DEGRESSIF', 'LINEAIRE', 'IN_FINE']
@@ -12,7 +13,7 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
   const [f, setF] = useState({
     type_produit: '', famille_produit: '', montant_min: '', montant_max: '',
     taux_interet_min: '', taux_interet_max: '', mode_calcul: 'CONSTANT', actif: true,
-    date_debut: '', date_fin: '', // ── Initialisation des champs dates
+    date_debut: '', date_fin: '', 
     ...initial
   })
 
@@ -22,7 +23,6 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
         ...p,
         taux_interet_min: initial.taux_interet_min ? parseFloat(initial.taux_interet_min) * 100 : '',
         taux_interet_max: initial.taux_interet_max ? parseFloat(initial.taux_interet_max) * 100 : '',
-        // Extraction au format YYYY-MM-DD si les dates proviennent de la BDD avec des timestamps
         date_debut: initial.date_debut ? initial.date_debut.split('T')[0] : '',
         date_fin: initial.date_fin ? initial.date_fin.split('T')[0] : ''
       }))
@@ -39,7 +39,7 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
       montant_max: parseFloat(f.montant_max),
       taux_interet_min: parseFloat(f.taux_interet_min) / 100,
       taux_interet_max: parseFloat(f.taux_interet_max) / 100,
-      date_debut: f.date_debut || null, // Convertit les chaînes vides en null pour l'API
+      date_debut: f.date_debut || null,
       date_fin: f.date_fin || null
     }
     onSave(dataToSave)
@@ -73,7 +73,6 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
         </div>
       </div>
 
-      {/* ── NOUVELLE SECTION DATES DANS LE FORMULAIRE ─────────── */}
       <p className="text-xs font-semibold uppercase tracking-wide text-surface-800/50 mb-1 pt-2">Période de Validité</p>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -94,6 +93,7 @@ function ProduitForm({ initial = {}, onSave, loading, error }) {
 }
 
 export default function ProduitsPage() {
+  const { user } = useAuth() 
   const [page, setPage]         = useState(1)
   const [search, setSearch]     = useState('')
   const [modal, setModal]       = useState(null)
@@ -104,6 +104,7 @@ export default function ProduitsPage() {
   const fetcher = useCallback(() => produitsApi.list({ page, search }), [page, search])
   const { data, loading, error, execute: refresh } = useApi(fetcher, [page])
 
+  // Sécurité sur la récupération de la liste des produits
   const produits = Array.isArray(data) ? data : data?.data ?? []
   const meta = data?.meta
   
@@ -136,21 +137,31 @@ export default function ProduitsPage() {
     IN_FINE: 'bg-indigo-100 text-indigo-700',
   }
 
+  // Filtrage sécurisé (évite les crashs si type_produit ou famille_produit est null/undefined)
+  const produitsFilitres = produits.filter(p => {
+    const nom = p?.type_produit ? String(p.type_produit).toLowerCase() : ''
+    const famille = p?.famille_produit ? String(p.famille_produit).toLowerCase() : ''
+    const recherche = search.toLowerCase()
+    return nom.includes(recherche) || famille.includes(recherche)
+  })
+
   return (
     <div>
       <PageHeader
         title="Produits de Crédit"
         subtitle="Configuration des offres de financement"
         action={
-          <button className="btn-primary" onClick={() => setModal('create')}>
-            <Plus size={16} /> Nouveau produit
-          </button>
+          user?.role === 'admin' && (
+            <button className="btn-primary" onClick={() => setModal('create')}>
+              <Plus size={16} /> Nouveau produit
+            </button>
+          )
         }
       />
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard label="Total produits" value={meta?.total ?? produits.length} icon={Layers} color="brand" />
-        <StatCard label="Produits actifs" value={produits.filter(p => p.actif).length} icon={Layers} color="blue" />
+        <StatCard label="Produits actifs" value={produits.filter(p => p?.actif).length} icon={Layers} color="blue" />
       </div>
 
       <div className="card p-0">
@@ -162,72 +173,71 @@ export default function ProduitsPage() {
         </div>
 
         {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
-        : produits.length === 0 ? <Empty message="Aucun produit trouvé." />
+        : produitsFilitres.length === 0 ? <Empty message="Aucun produit trouvé." />
         : (
           <div className="overflow-x-auto">
-           <table className="w-full border-collapse">
-  <thead className="bg-surface-50 border-b border-surface-100">
-    <tr>
-      {/* Ajustez la classe "py-3 px-4" (ou votre équivalent de padding) 
-        pour qu'elle corresponde exactement à vos <td> 
-      */}
-      <th className="th py-3 px-4 text-left font-semibold text-sm">ID</th>
-      <th className="th py-1 px-4 text-left font-semibold text-sm">Désignation</th>
-      <th className="th py-3 px-4 text-left font-semibold text-sm">Fourchette Montants DH</th>
-      <th className="th py-3 px-4 text-left font-semibold text-sm">Taux d'intérêt</th>
-      <th className="th py-3 px-4 text-left font-semibold text-sm">Mode de calcul</th>
-      <th className="th py-3 px-4 text-left font-semibold text-sm">Validité</th>
-      <th className="th py-3 px-4 text-left font-semibold text-sm">Statut</th>
-      <th className="th py-3 px-4"></th>
-    </tr>
-  </thead>
-  <tbody className="divide-y divide-surface-100">
-    {produits
-      .filter(p =>
-        (p.type_produit || '').toLowerCase().includes(search.toLowerCase()) ||
-        (p.famille_produit || '').toLowerCase().includes(search.toLowerCase())
-      )
-      .map(p => (
-        /* align-middle ou vertical-align permet de s'assurer que le contenu court (ex: ID) se centre par rapport au contenu haut (ex: Désignation ou Validité) */
-        <tr key={p.id} className="table-row hover:bg-surface-50/50 transition-colors align-middle">
-          <td className="td py-3 px-4 font-mono text-xs text-surface-800/60">#{p.id}</td>
-          <td className="td py-3 px-4">
-            <div className="font-medium text-surface-900">{p.type_produit}</div>
-            <div className="text-[11px] text-surface-800/50 mt-0.5">{p.famille_produit}</div>
-          </td>
-          <td className="td py-3 px-4 text-xs font-mono text-surface-900">
-            {parseFloat(p.montant_min).toLocaleString()} - {parseFloat(p.montant_max).toLocaleString()}
-          </td>
-          <td className="td py-3 px-4 text-xs font-mono text-surface-900">
-            {(parseFloat(p.taux_interet_min) * 100).toFixed(2)}% - {(parseFloat(p.taux_interet_max) * 100).toFixed(2)}%
-          </td>
-          <td className="td py-3 px-4">
-            <span className={`badge ${modeColor[p.mode_calcul] ?? 'bg-surface-100 text-surface-800'}`}>
-              {p.mode_calcul}
-            </span>
-          </td>
-          <td className="td py-3 px-4 text-xs text-surface-800/70">
-            <div className="flex flex-col gap-0.5 justify-center">
-              <span>Du : {p.date_debut ? formatDate(p.date_debut) : '—'}</span>
-              <span>Au : {p.date_fin ? formatDate(p.date_fin) : '—'}</span>
-            </div>
-          </td>
-          <td className="td py-3 px-4">
-            {p.actif 
-              ? <span className="badge bg-emerald-100 text-emerald-700">Actif</span>
-              : <span className="badge bg-surface-100 text-surface-600">Inactif</span>
-            }
-          </td>
-          <td className="td py-3 px-4">
-            <div className="flex items-center gap-1 justify-end">
-              <button onClick={() => { setSelected(p); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
-              <button onClick={() => { setSelected(p); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
-            </div>
-          </td>
-        </tr>
-      ))}
-  </tbody>
-</table>
+            <table className="w-full border-collapse">
+              <thead className="bg-surface-50 border-b border-surface-100">
+                <tr>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">ID</th>
+                  <th className="th py-1 px-4 text-left font-semibold text-sm">Désignation</th>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">Fourchette Montants DH</th>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">Taux d'intérêt</th>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">Mode de calcul</th>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">Validité</th>
+                  <th className="th py-3 px-4 text-left font-semibold text-sm">Statut</th>
+                  <th className="th py-3 px-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {produitsFilitres.map(p => (
+                  <tr key={p.id} className="table-row hover:bg-surface-50/50 transition-colors align-middle">
+                    <td className="td py-3 px-4 font-mono text-xs text-surface-800/60">#{p.id}</td>
+                    <td className="td py-3 px-4">
+                      <div className="font-medium text-surface-900">{p.type_produit}</div>
+                      <div className="text-[11px] text-surface-800/50 mt-0.5">{p.famille_produit}</div>
+                    </td>
+                    <td className="td py-3 px-4 text-xs font-mono text-surface-900">
+                      {p.montant_min ? parseFloat(p.montant_min).toLocaleString() : 0} - {p.montant_max ? parseFloat(p.montant_max).toLocaleString() : 0}
+                    </td>
+                    <td className="td py-3 px-4 text-xs font-mono text-surface-900">
+                      {p.taux_interet_min ? (parseFloat(p.taux_interet_min) * 100).toFixed(2) : '0.00'}% - {p.taux_interet_max ? (parseFloat(p.taux_interet_max) * 100).toFixed(2) : '0.00'}%
+                    </td>
+                    <td className="td py-3 px-4">
+                      {/* Utilisation sécurisée d'une classe standard au lieu d'un composant Badge externe potentiellement conflictuel */}
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${modeColor[p.mode_calcul] ?? 'bg-surface-100 text-surface-800'}`}>
+                        {p.mode_calcul}
+                      </span>
+                    </td>
+                    <td className="td py-3 px-4 text-xs text-surface-800/70">
+                      <div className="flex flex-col gap-0.5 justify-center">
+                        <span>Du : {p.date_debut ? formatDate(p.date_debut) : '—'}</span>
+                        <span>Au : {p.date_fin ? formatDate(p.date_fin) : '—'}</span>
+                      </div>
+                    </td>
+                    <td className="td py-3 px-4">
+                      {p.actif 
+                        ? <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700">Actif</span>
+                        : <span className="px-2 py-1 rounded text-xs font-medium bg-surface-100 text-surface-600">Inactif</span>
+                      }
+                    </td>
+                    <td className="td py-3 px-4">
+                      <div className="flex items-center gap-1 justify-end min-w-[60px]">
+                        {user?.role === 'admin' ? (
+                          <>
+                            <button onClick={() => { setSelected(p); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
+                            <button onClick={() => { setSelected(p); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                          </>
+                        ) : (
+                          // Laisse un espace propre ou un texte descriptif léger si c'est le manager (lecture seule)
+                          <span className="text-[11px] text-surface-800/40 italic pr-2">Lecture</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         <div className="px-5 pb-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>

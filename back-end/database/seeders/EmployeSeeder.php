@@ -42,7 +42,7 @@ class EmployeSeeder extends Seeder
             'personne_id' => $p2->id,
             'nom_utilisateur' => 'manager',
             'mot_de_passe' => Hash::make('manager123'),
-            'role' => 'DIRECTEUR', // Correspond à votre enum
+            'role' => 'MANAGER', // Correspond à votre enum
             'date_embauche' => now(),
         ]);
 
