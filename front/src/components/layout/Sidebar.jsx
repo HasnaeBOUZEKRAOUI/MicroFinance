@@ -16,8 +16,7 @@ const navItems = [
   { to: '/demandes',  label: 'Demandes de crédit', icon: FileText, roles: ['AGENT_CREDIT','MANAGER'] },
   { to: '/produits',  label: 'Produits',  icon: FileText, roles: ['ADMIN','MANAGER'] }, // Uniquement Admin
   { to: '/prets',     label: 'Prêts',     icon: CreditCard, roles: [ 'AGENT_CREDIT'] },
-  { to: '/paiements', label: 'Paiements', icon: DollarSign, roles: ['AGENT_CREDIT'] },
-  { to: '/alertes',   label: 'Alertes',   icon: Bell },
+  { to: '/encaisser', label: 'Paiements', icon: DollarSign, roles: ['AGENT_CREDIT'] },
 ]
 
 export default function Sidebar() {

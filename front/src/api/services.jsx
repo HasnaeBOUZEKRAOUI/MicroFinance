@@ -43,16 +43,29 @@ export const pretsApi = {
   get:          (id)     => api.get(`/prets/${id}`),
   create:       (data)   => api.post('/prets', data),
   update:       (id, d)  => api.put(`/prets/${id}`, d),
-  echeancier:   (id)     => api.get(`/prets/${id}/echeancier`),
+  echeancier: (pretId) => api.get(`/prets/${pretId}/echeances`),
   soldeRestant: (id)     => api.get(`/prets/${id}/solde-restant`),
 }
 
 // ── Paiements ─────────────────────────────────────
 export const paiementsApi = {
-  list:   (params) => api.get('/paiements', { params }),
-  get:    (id)     => api.get(`/paiements/${id}`),
-  create: (data)   => api.post('/paiements', data),
-  annuler:(id)     => api.delete(`/paiements/${id}`),
+  // Liste et filtre l'historique global des paiements
+  list: (params) => api.get('/paiements', { params }),
+  
+  // Enregistrer un nouvel encaissement (utilisé dans la modale d'EncaisserPage)
+  // POST /api/paiements
+  create: (data) => api.post('/paiements', data),
+  
+  // Voir les détails d'un reçu de paiement spécifique
+  show: (id) => api.get(`/paiements/${id}`),
+  
+  // Annuler un paiement (déclenche le Soft Delete côté Laravel)
+  // DELETE /api/paiements/{id}
+  cancel: (id) => api.delete(`/paiements/${id}`),
+  
+  // Forcer la validation ou re-validation d'un paiement
+  // POST /api/paiements/{id}/valider
+  validate: (id) => api.post(`/paiements/${id}/valider`),
 }
 
 // ── Alertes ───────────────────────────────────────

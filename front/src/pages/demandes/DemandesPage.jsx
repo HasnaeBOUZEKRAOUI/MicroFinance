@@ -16,19 +16,19 @@ import {
 
 // ─── CONFIGURATION WORKFLOW VISUEL ─────────────────────────────────
 const WORKFLOW = {
-  EN_ATTENTE:       { label: 'Instance',        color: 'bg-amber-100 text-amber-800',     icon: Clock },
-  EN_COURS_ANALYSE: { label: 'En analyse',      color: 'bg-blue-100 text-blue-800',       icon: ClipboardList },
-  APPROUVEE:        { label: 'Approuvée',       color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
-  REJETEE:          { label: 'Rejetée',         color: 'bg-red-100 text-red-800',         icon: XCircle },
-  ANNULEE:          { label: 'Annulée',         color: 'bg-surface-100 text-surface-800', icon: X },
-  DECAISSEE:        { label: 'Décaissée',       color: 'bg-purple-100 text-purple-800',   icon: Banknote },
+  EN_ATTENTE:       { label: 'Instance',        color: 'bg-amber-100 text-amber-800'},
+  EN_COURS_ANALYSE: { label: 'En analyse',      color: 'bg-blue-100 text-blue-800' },
+  APPROUVEE:        { label: 'Approuvée',       color: 'bg-emerald-100 text-emerald-800' },
+  REJETEE:          { label: 'Rejetée',         color: 'bg-red-100 text-red-800'},
+  ANNULEE:          { label: 'Annulée',         color: 'bg-surface-100 text-surface-800' },
+  DECAISSEE:        { label: 'Décaissée',       color: 'bg-purple-100 text-purple-800' },
 }
 
 const ETAPES = [
-  { id: 'EN_ATTENTE',       label: 'En attente',     icon: FileText },
-  { id: 'EN_COURS_ANALYSE', label: 'Analyse',      icon: ClipboardList },
-  { id: 'APPROUVEE',        label: 'Comité',       icon: Shield },
-  { id: 'DECAISSEE',        label: 'Décaissement', icon: Banknote },
+  { id: 'EN_ATTENTE',       label: 'En attente' },
+  { id: 'EN_COURS_ANALYSE', label: 'Analyse' },
+  { id: 'APPROUVEE',        label: 'Comité'},
+  { id: 'DECAISSEE',        label: 'Décaissement' },
 ]
 const ETAPE_IDX = { EN_ATTENTE: 0, EN_COURS_ANALYSE: 1, APPROUVEE: 2, DECAISSEE: 3 }
 
@@ -41,7 +41,7 @@ function WorkflowBar({ statut }) {
         <div key={e.id} className="flex items-center">
           <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all
             ${rej && i === cur ? 'bg-red-100 text-red-700' : i < cur ? 'bg-emerald-100 text-emerald-700' : i === cur && !rej ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-800/40'}`}>
-            {i < cur ? <CheckCircle size={10} /> : <e.icon size={10} />} {e.label}
+             {e.label}
           </div>
           {i < 3 && <ChevronRight size={12} className={`mx-0.5 ${i < cur ? 'text-emerald-400' : 'text-surface-200'}`} />}
         </div>
@@ -211,40 +211,53 @@ function DemandeForm({ onSave, loading, error, initialData }) {
     </form>
   )
 }
-
-// ─── 3. MODAUX WORKFLOW RESERVES AU MANAGER ─────────────────────────────────────
 function ModalApprouver({ demande, onClose, onDone }) {
-  const [form, setForm] = useState({ montant_accorde: demande.montant_demande, nb_echeances: demande.duree_demandee || 12, taux: '0.1200', date_octroi: new Date().toISOString().split('T')[0], grace: 0, commentaire: '' })
+  // 🌟 FIX : On a retiré la date d'octroi d'ici
+  const [form, setForm] = useState({ 
+    montant_accorde: demande.montant_demande, 
+    nb_echeances: demande.duree_demandee || 12, 
+    taux: '0.1200', 
+    grace: 0, 
+    commentaire: '' 
+  })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
   
   const save = async () => {
     setSaving(true); setErr('')
-    try { await demandesApi.approuver(demande.id, form); onDone() }
+    try { 
+      await demandesApi.approuver(demande.id, form)
+      onDone() 
+    }
     catch (e) { setErr(e.response?.data?.message || 'Erreur.') }
     finally { setSaving(false) }
   }
+
   return (
     <div className="space-y-4">
       <div className="p-3 bg-surface-50 rounded-xl border border-surface-100 grid grid-cols-2 gap-2 text-xs">
         <div><span className="text-surface-800/50">Client:</span> <strong className="font-semibold">{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong></div>
         <div><span className="text-surface-800/50">Demandé:</span> <strong className="font-semibold">{formatMontant(demande.montant_demande)} ({demande.duree_demandee} mois)</strong></div>
       </div>
+      
       {demande.score_risque != null && (
         <div className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium ${demande.score_risque >= 50 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
           <Shield size={14} /> Score centrale des risques : {demande.score_risque}/100
         </div>
       )}
+      
       <ErrorAlert message={err} />
+      
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="label">Montant accordé (MAD)</label><input className="input" type="number" value={form.montant_accorde} onChange={set('montant_accorde')} /></div>
-        <div><label className="label">Nb d'échéances</label><input className="input" type="number" value={form.nb_echeances} onChange={set('nb_echeances')} /></div>
-        <div><label className="label">Taux annuel</label><input className="input" type="number" step="0.0001" value={form.taux} onChange={set('taux')} /></div>
-        <div><label className="label">Date d'octroi</label><input className="input" type="date" value={form.date_octroi} onChange={set('date_octroi')} /></div>
-        <div className="col-span-2"><label className="label">Période de grâce (mois)</label><input className="input" type="number" min="0" value={form.grace} onChange={set('grace')} /></div>
+        <div><label className="label">Montant accordé (MAD)</label><input className="input font-semibold" type="number" value={form.montant_accorde} onChange={set('montant_accorde')} /></div>
+        <div><label className="label">Nb d'échéances validées</label><input className="input" type="number" value={form.nb_echeances} onChange={set('nb_echeances')} /></div>
+        <div><label className="label">Taux annuel proposé</label><input className="input font-mono" type="number" step="0.0001" value={form.taux} onChange={set('taux')} /></div>
+        <div><label className="label">Période de grâce (mois)</label><input className="input" type="number" min="0" value={form.grace} onChange={set('grace')} /></div>
       </div>
+      
       <div><label className="label">Commentaire de décision</label><textarea className="input h-16 resize-none" value={form.commentaire} onChange={set('commentaire')} placeholder="Avis favorable du comité..." /></div>
+      
       <div className="flex justify-end gap-2">
         <button className="btn-secondary" onClick={onClose}>Annuler</button>
         <button className="btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner className="w-4 h-4" /> : <ThumbsUp size={14} />} Valider en Comité</button>
@@ -268,10 +281,17 @@ function ModalRejeter({ open, onClose, onConfirm, loading }) {
       </div>
     </Modal>
   )
-}
-
-function ModalDecaisser({ demande, onClose, onDone }) {
-  const [form, setForm] = useState({ montant_accorde: demande.montant_demande, date_debut: new Date().toISOString().split('T')[0], taux_interet: '0.1200', periode_grace: 0 })
+}function ModalDecaisser({ demande, onClose, onDone }) {
+  // 🌟 FIX : L'agent hérite des choix du manager (depuis l'objet demande)
+  // Il saisit uniquement la date de début (date de remise des fonds)
+  const [form, setForm] = useState({
+    montant_accorde: demande.montant_accorde || demande.montant_demande,
+    taux_interet: demande.taux || '0.1200',
+    periode_grace: demande.grace || 0,
+    duree_pret: demande.nb_echeances || demande.duree_demandee || 12,
+    date_debut: new Date().toISOString().split('T')[0] // Saisie libre pour l'agent
+  })
+  
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
@@ -282,29 +302,69 @@ function ModalDecaisser({ demande, onClose, onDone }) {
       const { pretsApi } = await import('../../api/services')
       await pretsApi.create({ demande_credit_id: demande.id, ...form })
       onDone()
-    } catch (e) { setErr(e.response?.data?.message || 'Erreur au décaissement.') }
-    finally { setSaving(false) }
+    } catch (e) { 
+      setErr(e.response?.data?.message || 'Erreur au décaissement.') 
+    } finally { 
+      setSaving(false) 
+    }
   }
+
   return (
     <div className="space-y-4">
-      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800">
-        <p className="font-semibold">✅ Feu vert pour Décaissement — Prêt #{demande.id}</p>
+      <div className="p-3.5 bg-purple-50 rounded-xl border border-purple-100 space-y-1 text-xs text-purple-950">
+        <p className="font-bold flex items-center gap-1.5 text-purple-800 text-sm">
+          <Banknote size={16} /> Remise des fonds & Activation du Prêt
+        </p>
+        <p className="text-purple-900/80">
+          Client : <strong className="font-semibold text-purple-950">{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong>
+        </p>
       </div>
+
       <ErrorAlert message={err} />
+      
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="label">Montant final (MAD) *</label><input className="input" type="number" step="0.01" value={form.montant_accorde} onChange={set('montant_accorde')} /></div>
-        <div><label className="label">Date d'effet *</label><input className="input" type="date" value={form.date_debut} onChange={set('date_debut')} /></div>
-        <div><label className="label">Taux d'intérêt annuel *</label><input className="input" type="number" step="0.0001" value={form.taux_interet} onChange={set('taux_interet')} /></div>
-        <div><label className="label">Période de grâce</label><input className="input" type="number" min="0" value={form.periode_grace} onChange={set('periode_grace')} /></div>
+        {/* Date d'effet : CHAMP ACTIF POUR L'AGENT */}
+        <div className="col-span-2">
+          <label className="label text-brand-600 font-bold">Date de remise des fonds (Date d'effet) *</label>
+          <input className="input border-brand-300 bg-brand-50/20 text-sm" type="date" value={form.date_debut} onChange={set('date_debut')} required />
+          <p className="text-[10px] text-brand-600/70 mt-1">Détermine la date de génération de la première mensualité.</p>
+        </div>
+
+        <hr className="col-span-2 my-1 border-surface-100" />
+        <p className="col-span-2 text-[10px] uppercase font-bold tracking-wider text-surface-400">Conditions approuvées (Lecture seule)</p>
+
+        {/* Champs verrouillés en ReadOnly pour préserver la décision du Manager */}
+        <div>
+          <label className="label text-surface-400">Montant accordé (MAD)</label>
+          <input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.montant_accorde} readOnly />
+        </div>
+        
+        <div>
+          <label className="label text-surface-400">Nombre d'échéances</label>
+          <input className="input bg-surface-50 text-surface-500" type="number" value={form.duree_pret} readOnly />
+        </div>
+
+        <div>
+          <label className="label text-surface-400">Taux d'intérêt annuel</label>
+          <input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.taux_interet} readOnly />
+        </div>
+
+        <div>
+          <label className="label text-surface-400">Mois de grâce</label>
+          <input className="input bg-surface-50 text-surface-500" type="number" value={form.periode_grace} readOnly />
+        </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <button className="btn-secondary" onClick={onClose}>Annuler</button>
-        <button className="btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner className="w-4 h-4" /> : <Banknote size={14} />} Ordonner le décaissement</button>
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-surface-100">
+        <button className="btn-secondary" onClick={onClose} disabled={saving}>Annuler</button>
+        <button className="btn-primary bg-purple-600 hover:bg-purple-700 text-white" onClick={save} disabled={saving}>
+          {saving ? <Spinner className="w-4 h-4" /> : <ShieldCheck size={14} />} 
+          {saving ? 'Création de l\'échéancier...' : 'Confirmer le Décaissement'}
+        </button>
       </div>
     </div>
   )
 }
-
 // ─── 4. LIGNE DU TABLEAU (Expansible & Contextuelle) ─────────────────────────────
 function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser }) {
   const navigate = useNavigate()
@@ -329,44 +389,61 @@ function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser 
           </span>
         </td>
         <td className="td py-3 px-4" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-1 justify-end">
-            <button onClick={() => navigate(`/demandes/${demande.id}`)} className="p-1.5 rounded-lg hover:bg-surface-100" title="Voir détails complets"><Eye size={14} /></button>
-            
-            {/* ACTIONS AGENT */}
-            {!isManager && demande.statut_demande === 'EN_ATTENTE' && (
-              <>
-                <button onClick={() => onAction('edit', demande)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600" title="Modifier"><Pencil size={14} /></button>
-                <button onClick={() => onAction('delete', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Supprimer"><Trash2 size={14} /></button>
-              </>
-            )}
+  <div className="flex items-center gap-1 justify-end">
+    {/* Bouton Voir détails accessible par tout le monde */}
+    <button onClick={() => navigate(`/demandes/${demande.id}`)} className="p-1.5 rounded-lg hover:bg-surface-100" title="Voir détails complets"><Eye size={14} /></button>
+    
+    {/* 💼 ACTIONS DU CONSEILLER / AGENT */}
+    {!isManager && (
+      <>
+        {/* Si la demande est en attente, l'agent peut modifier/supprimer */}
+        {demande.statut_demande === 'EN_ATTENTE' && (
+          <>
+            <button onClick={() => onAction('edit', demande)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600" title="Modifier"><Pencil size={14} /></button>
+            <button onClick={() => onAction('delete', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Supprimer"><Trash2 size={14} /></button>
+          </>
+        )}
+        
+        {/* 🌟 FIX : C'est l'AGENT qui voit le bouton Décaisser quand le statut est APPROUVEE */}
+        {demande.statut_demande === 'APPROUVEE' && (
+          <button onClick={() => onAction('decaisser', demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
+            <Banknote size={11}/> Remettre les fonds (Décaisser)
+          </button>
+        )}
+      </>
+    )}
 
-            {/* ACTIONS MANAGER (Workflow direct sans affectation manuelle) */}
-            {isManager && (
-              <>
-                {demande.statut_demande === 'EN_ATTENTE' && (
-                  <button onClick={() => onAnalyser(demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
-                    <ClipboardList size={10}/> Prendre en charge & Analyser
-                  </button>
-                )}
-                {demande.statut_demande === 'EN_COURS_ANALYSE' && (
-                  <>
-                    <button onClick={() => onAction('approuver', demande)} className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600" title="Passer en comité"><CheckCircle size={14} /></button>
-                    <button onClick={() => onAction('rejeter', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Rejeter"><XCircle size={14} /></button>
-                  </>
-                )}
-                {demande.statut_demande === 'APPROUVEE' && (
-                  <>
-                    <button onClick={() => onAction('decaisser', demande)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100"><Banknote size={10}/> Décaisser</button>
-                    <button onClick={() => onAction('annuler', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Annuler la demande"><X size={14} /></button>
-                  </>
-                )}
-              </>
-            )}
-            <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-surface-100 text-surface-800/30">
-              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </button>
-          </div>
-        </td>
+    {/* 👔 ACTIONS DU MANAGER */}
+    {isManager && (
+      <>
+        {/* Étape 1 : Le manager prend en charge le dossier */}
+        {demande.statut_demande === 'EN_ATTENTE' && (
+          <button onClick={() => onAnalyser(demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
+            <ClipboardList size={10}/> Prendre en charge & Analyser
+          </button>
+        )}
+        
+        {/* Étape 2 : Le manager étudie et décide en comité */}
+        {demande.statut_demande === 'EN_COURS_ANALYSE' && (
+          <>
+            <button onClick={() => onAction('approuver', demande)} className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600" title="Passer en comité"><CheckCircle size={14} /></button>
+            <button onClick={() => onAction('rejeter', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Rejeter"><XCircle size={14} /></button>
+          </>
+        )}
+        
+        {/* Étape 3 : Si besoin, le manager peut toujours annuler un dossier approuvé mais non encore décaissé */}
+        {demande.statut_demande === 'APPROUVEE' && (
+          <button onClick={() => onAction('annuler', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Annuler la demande d'office"><X size={14} /></button>
+        )}
+      </>
+    )}
+
+    {/* Bouton de déploiement de la ligne */}
+    <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-surface-100 text-surface-800/30">
+      {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+    </button>
+  </div>
+</td>
       </tr>
       {expanded && (
         <tr>

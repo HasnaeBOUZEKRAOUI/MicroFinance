@@ -8,6 +8,8 @@ use App\Models\DemandeCredit;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PretController extends Controller
 {
@@ -28,7 +30,7 @@ class PretController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
-    /** Décaisser un prêt (création depuis une demande approuvée) */
+    /** Décaisser un prêt (création depuis une demande approuvée) + Génération des échéances */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -53,23 +55,81 @@ class PretController extends Controller
             ], 409);
         }
 
-        $duree = $demande->duree_demandee;
-        $debut = \Carbon\Carbon::parse($validated['date_debut']);
+        $duree = (int) $demande->duree_demandee;
+        $periodeGrace = (int) ($validated['periode_grace'] ?? 0);
+        $debut = Carbon::parse($validated['date_debut']);
+        
+        // La date de fin s'allonge du nombre de mois de la période de grâce
+        $dateFin = $debut->copy()->addMonths($duree + $periodeGrace);
 
-        $pret = Pret::create([
-            'demande_credit_id' => $demande->id,
-            'reference'         => 'PRE-' . strtoupper(Str::random(8)),
-            'montant_accorde'   => $validated['montant_accorde'],
-            'date_debut'        => $debut->toDateString(),
-            'date_fin'          => $debut->copy()->addMonths($duree)->toDateString(),
-            'taux_interet'      => $validated['taux_interet'],
-            'statut_pret'       => 'EN_COURS',
-            'periode_grace'     => $validated['periode_grace'] ?? 0,
-            'capital_restant'   => $validated['montant_accorde'],
-        ]);
+        // Déclaration de la variable pour y accéder hors du scope de la transaction
+        $pret = null;
 
-        // Marquer la demande comme décaissée
-        $demande->update(['statut_demande' => 'DECAISSEE']);
+        // Utilisation d'une transaction pour s'assurer que tout s'insère ou rien du tout
+        DB::transaction(function () use ($validated, $demande, $debut, $dateFin, $duree, $periodeGrace, &$pret) {
+            
+            // 1. Création du prêt
+            $pret = Pret::create([
+                'demande_credit_id' => $demande->id,
+                'reference'         => 'PRE-' . strtoupper(Str::random(8)),
+                'montant_accorde'   => $validated['montant_accorde'],
+                'date_debut'        => $debut->toDateString(),
+                'date_fin'          => $dateFin->toDateString(),
+                'taux_interet'      => $validated['taux_interet'],
+                'statut_pret'       => 'EN_COURS',
+                'periode_grace'     => $periodeGrace,
+                'capital_restant'   => $validated['montant_accorde'],
+            ]);
+
+            // 2. Variables de calcul pour le plan d'amortissement
+            $capitalRestantDu = (float) $validated['montant_accorde'];
+            $montantPrincipalParEcheance = $capitalRestantDu / $duree; 
+            $tauxMensuel = (float) $validated['taux_interet'] / 12;
+
+            $dateEcheanceCourante = $debut->copy();
+            $totalEcheances = $duree + $periodeGrace;
+
+            // 3. Boucle de génération des échéances
+            for ($i = 1; $i <= $totalEcheances; $i++) {
+                $dateEcheanceCourante->addMonth();
+
+                // Calcul des intérêts basés sur le capital qui reste à payer
+                $interetDu = $capitalRestantDu * $tauxMensuel;
+
+                // Gestion de la période de grâce
+                if ($i <= $periodeGrace) {
+                    $principalDu = 0; // Pas de remboursement de capital pendant la grâce
+                } else {
+                    $principalDu = $montantPrincipalParEcheance;
+                }
+
+                $totalDu = $principalDu + $interetDu;
+
+                // Insertion directe dans la table échéance via le Query Builder (plus rapide dans une boucle)
+                DB::table('echeances')->insert([
+                    'pret_id'           => $pret->id,
+                    'numero_echeance'   => $i,
+                    'date_echeance'     => $dateEcheanceCourante->toDateString(),
+                    'total_du'          => round($totalDu, 2),
+                    'montant_principal' => round($principalDu, 2),
+                    'montant_interet'   => round($interetDu, 2),
+                    'montant_paye'      => 0,
+                    'jours_retard'      => 0,
+                    'penalites'         => 0,
+                    'statut'            => 'EN_ATTENTE',
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
+                ]);
+
+                // On réduit le capital restant uniquement si on a amorti (hors période de grâce)
+                if ($i > $periodeGrace) {
+                    $capitalRestantDu -= $principalDu;
+                }
+            }
+
+            // 4. Marquer la demande comme décaissée
+            $demande->update(['statut_demande' => 'DECAISSEE']);
+        });
 
         return response()->json($pret->load('demandeCredit.client.personne'), 201);
     }
@@ -116,7 +176,7 @@ class PretController extends Controller
             'pret_id'         => $pret->id,
             'reference'       => $pret->reference,
             'montant_accorde' => $pret->montant_accorde,
-            'solde_restant'   => $pret->calculerSoldeRestant(),
+            'solde_restant'   => $pret->capital_restant, // Utilisation directe de ton champ existant
             'echeances'       => $echeances,
         ]);
     }
@@ -127,7 +187,7 @@ class PretController extends Controller
         return response()->json([
             'pret_id'       => $pret->id,
             'reference'     => $pret->reference,
-            'solde_restant' => $pret->calculerSoldeRestant(),
+            'solde_restant' => $pret->capital_restant, // Utilisation directe de ton champ existant
         ]);
     }
 }

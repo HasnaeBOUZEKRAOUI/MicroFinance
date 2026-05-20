@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 class PaiementController extends Controller
 {
+    /**
+     * Liste des paiements avec filtres dynamiques
+     */
     public function index(Request $request): JsonResponse
     {
         $query = Paiement::with(['echeance.pret.demandeCredit.client.personne', 'employe.personne']);
@@ -27,74 +30,76 @@ class PaiementController extends Controller
             $query->whereBetween('date_paiement', [$request->date_debut, $request->date_fin]);
         }
 
+        // On n'affiche que les paiements valides par défaut dans l'index principal
         return response()->json($query->latest('date_paiement')->paginate(20));
     }
 
+    /**
+     * Enregistrer un nouveau paiement (Encaissement)
+     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'echeance_id'         => 'required|exists:echeances,id',
-            'employe_id'          => 'nullable|exists:employes,id',
-            'date_paiement'       => 'required|date',
-            'montant'             => 'required|numeric|min:0.01',
-            'mode_paiement'       => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
-            'reference_transaction'=> 'nullable|string|unique:paiements,reference_transaction',
-            'observation'         => 'nullable|string|max:500',
+            'echeance_id'           => 'required|exists:echeances,id',
+            'employe_id'            => 'nullable|exists:employes,id',
+            'date_paiement'         => 'required|date',
+            'montant'               => 'required|numeric|min:0.01',
+            'mode_paiement'         => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
+            'reference_transaction' => 'nullable|string|unique:paiements,reference_transaction',
+            'observation'           => 'nullable|string|max:500',
         ]);
 
-        DB::transaction(function () use ($validated, &$paiement) {
-            $echeance = Echeance::findOrFail($validated['echeance_id']);
-
-            $paiement = Paiement::create($validated);
-
-            // Mise à jour du montant payé sur l'échéance
-            $totalPaye = $echeance->montant_paye + $validated['montant'];
-            $echeance->montant_paye = $totalPaye;
-
-            if ($totalPaye >= $echeance->total_du) {
-                $echeance->statut = 'PAYEE';
-            } else {
-                $echeance->statut = 'PARTIELLEMENT_PAYEE';
-            }
-
-            $echeance->save();
+        $paiement = DB::transaction(function () use ($validated) {
+            // 🌟 LE HOOK Eloquent static::created() dans Paiement.php 
+            // se charge d'exécuter automatiquement $this->synchroniserEcheance()
+            return Paiement::create($validated);
         });
 
         return response()->json($paiement->load('echeance', 'employe.personne'), 201);
     }
 
+    /**
+     * Détails d'un paiement spécifique
+     */
     public function show(Paiement $paiement): JsonResponse
     {
         return response()->json($paiement->load(['echeance.pret', 'employe.personne']));
     }
 
+    /**
+     * Annuler un paiement (via Soft Delete)
+     */
     public function destroy(Paiement $paiement): JsonResponse
     {
+        // Si le paiement est déjà annulé (soft-deleted) ou marqué invalide
         if (!$paiement->est_valide) {
             return response()->json(['message' => 'Ce paiement est déjà annulé.'], 422);
         }
 
         DB::transaction(function () use ($paiement) {
-            $echeance = $paiement->echeance;
-
-            // Recalculer le montant payé sur l'échéance
-            $totalPaye = max(0, $echeance->montant_paye - $paiement->montant);
-            $echeance->montant_paye = $totalPaye;
-            $echeance->statut = $totalPaye <= 0 ? 'EN_ATTENTE' : 'PARTIELLEMENT_PAYEE';
-            $echeance->save();
-
+            // 1. On passe le flag de validité à faux
             $paiement->update(['est_valide' => false]);
+
+            // 2. On applique le Soft Delete (génère la date dans deleted_at)
+            // 🌟 LE HOOK static::deleted() va recalculer l'échéance à la baisse automatiquement !
+            $paiement->delete();
         });
 
         return response()->json(['message' => 'Paiement annulé avec succès.']);
     }
 
-    /** Valider un paiement */
+    /**
+     * Valider/Restaurer un paiement qui avait été invalidé (Optionnel)
+     */
     public function valider(Paiement $paiement): JsonResponse
     {
+        DB::transaction(function () use ($paiement) {
+            $paiement->update(['est_valide' => true]);
+        });
+
         return response()->json([
-            'paiement_id' => $paiement->id,
-            'est_valide'  => $paiement->validerPaiement(),
+            'message' => 'Paiement validé avec succès.',
+            'paiement' => $paiement->load('echeance')
         ]);
     }
 }

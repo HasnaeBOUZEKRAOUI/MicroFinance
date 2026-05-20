@@ -151,7 +151,7 @@ export default function ProduitsPage() {
         title="Produits de Crédit"
         subtitle="Configuration des offres de financement"
         action={
-          user?.role === 'admin' && (
+          user?.role === 'ADMIN' && (
             <button className="btn-primary" onClick={() => setModal('create')}>
               <Plus size={16} /> Nouveau produit
             </button>

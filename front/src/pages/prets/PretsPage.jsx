@@ -5,8 +5,7 @@ import { pretsApi, demandesApi } from '../../api/services' // 👈 Importation d
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant, formatTaux } from '../../utils/helpers'
 import { PageHeader, Badge, Modal, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
-import { CreditCard, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
-
+import { CreditCard, TrendingUp, AlertTriangle, CheckCircle, Calendar } from 'lucide-react'
 // ─── COMPOSANT FORMULAIRE (AVEC SELECT DE DEMANDES APPROUVÉES) ───────────────
 function PretForm({ onSave, loading, error }) {
   const [f, setF] = useState({
@@ -112,7 +111,6 @@ export default function PretsPage() {
       <PageHeader
         title="Prêts"
         subtitle="Portefeuille de prêts actifs et archivés"
-        action={<button className="btn-primary" onClick={() => setModal('create')}><Plus size={16} /> Décaisser un prêt</button>}
       />
 
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -130,37 +128,56 @@ export default function PretsPage() {
         </div>
 
         {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
-        : error   ? <div className="p-6"><ErrorAlert message={error} /></div>
-        : prets.length === 0 ? <Empty message="Aucun prêt trouvé." />
-        : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>{['Référence', 'Client', 'Montant demandé', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', ''].map(h => <th key={h} className="th">{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {prets.map(p => (
-                  <tr key={p.id} className="table-row">
-                    <td className="td font-mono text-xs font-medium text-brand-700">{p.reference}</td>
-                    <td className="td">{p.demande_credit?.client?.personne?.prenom} {p.demande_credit?.client?.personne?.nom}</td>
-                    <td className="td font-mono text-xs">{formatMontant(p.demande_credit?.montant_demande)}</td>
-                    <td className="td font-mono text-xs">{formatMontant(p.montant_accorde)}</td>
-                    <td className="td text-xs">{formatTaux(p.taux_interet)}</td>
-                    <td className="td text-xs">{formatDate(p.date_debut)}</td>
-                    <td className="td text-xs">{formatDate(p.date_fin)}</td>
-                    <td className="td text-xs text-center">{p.periode_grace} mois</td>
-                    <td className="td"><Badge statut={p.statut_pret} /></td>
-                    <td className="td">
-                      <button onClick={() => navigate(`/prets/${p.id}`)} className="p-1.5 rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-colors" title="Voir l'échéancier">
-                        <Eye size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+: error   ? <div className="p-6"><ErrorAlert message={error} /></div>
+: prets.length === 0 ? <Empty message="Aucun prêt trouvé." />
+: (
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-surface-50 border-b border-surface-100">
+        {/* 🌟 Changement ici : le dernier élément est 'Actions' */}
+        <tr>{['Référence', 'Client', 'Montant demandé', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', 'Actions'].map(h => <th key={h} className="th text-left py-3 px-4 text-xs font-semibold text-surface-800/60">{h}</th>)}</tr>
+      </thead>
+      <tbody className="divide-y divide-surface-100">
+        {prets.map(p => (
+          <tr key={p.id} className="table-row hover:bg-surface-50/50 transition-colors">
+            <td className="td font-mono text-xs font-medium text-brand-700">{p.reference}</td>
+            <td className="td">{p.demande_credit?.client?.personne?.prenom} {p.demande_credit?.client?.personne?.nom}</td>
+            <td className="td font-mono text-xs">{formatMontant(p.demande_credit?.montant_demande)}</td>
+            <td className="td font-mono text-xs">{formatMontant(p.montant_accorde)}</td>
+            <td className="td text-xs">{formatTaux(p.taux_interet)}</td>
+            <td className="td text-xs">{formatDate(p.date_debut)}</td>
+            <td className="td text-xs">{formatDate(p.date_fin)}</td>
+            <td className="td text-xs text-center">{p.periode_grace} mois</td>
+            <td className="td"><Badge statut={p.statut_pret} /></td>
+            
+            {/* 🌟 Double bouton d'action en fin de ligne */}
+            <td className="td">
+              <div className="flex items-center gap-1.5">
+                {/* Bouton 1 : Voir la fiche générale du prêt */}
+                <button 
+                  onClick={() => navigate(`/prets/${p.id}`)} 
+                  className="p-1.5 rounded-lg text-surface-600 hover:bg-brand-50 hover:text-brand-600 transition-colors" 
+                  title="Voir la fiche du prêt"
+                >
+                  <Eye size={14} />
+                </button>
+
+                {/* Bouton 2 : Accéder directement aux échéances / tableau d'amortissement */}
+                <button 
+                  onClick={() => navigate(`/prets/${p.id}/echeances`)} // 👈 Ton lien vers la liste des échéances
+                  className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 hover:text-purple-700 transition-colors" 
+                  title="Voir l'échéancier de paiements"
+                >
+                  <Calendar size={14} />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
         <div className="px-5 pb-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
       </div>
 
