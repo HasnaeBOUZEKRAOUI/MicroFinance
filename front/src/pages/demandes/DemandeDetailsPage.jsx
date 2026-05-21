@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Briefcase, ShieldCheck, FileText, Calendar, DollarSign, Clock } from 'lucide-react'
 import { Spinner ,Badge ,ErrorAlert} from '../../components/ui'
 import { demandesApi } from '../../api/services'
+
 const formatDate = (dateString) => {
     if (!dateString) return '—'
     const date = new Date(dateString)
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  }
-  const formatMontant = (montant) => {
+}
+
+const formatMontant = (montant) => {
     if (!montant) return '—'
     return new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(montant)
-  }
+}
+
 export default function DemandeDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -19,12 +21,10 @@ export default function DemandeDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  
   useEffect(() => {
     setLoading(true)
     demandesApi.get(id)
       .then(res => {
-        // S'adapte si useApi ou Axios encapsule la réponse
         setDemande(res.data ?? res)
       })
       .catch(err => {
@@ -43,8 +43,8 @@ export default function DemandeDetailsPage() {
     <div className="space-y-6">
       {/* Retour et En-tête */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/demandes')} className="p-2 rounded-lg hover:bg-surface-100 transition-colors">
-          <ArrowLeft size={18} />
+        <button onClick={() => navigate('/demandes')} className="px-3 py-2 text-sm font-medium rounded-lg hover:bg-surface-100 transition-colors border border-surface-200">
+          ← Retour
         </button>
         <div>
           <div className="flex items-center gap-3">
@@ -61,37 +61,33 @@ export default function DemandeDetailsPage() {
           
           {/* Détails du Crédit */}
           <div className="card p-6">
-            <h2 className="text-base font-semibold text-surface-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <FileText size={18} className="text-brand-500" /> Informations du crédit demandé
+            <h2 className="text-base font-semibold text-surface-900 mb-4 border-b pb-2">
+              Informations du crédit demandé
             </h2>
             <div className="grid grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
-                <DollarSign className="w-5 h-5 text-surface-400 mt-0.5" />
                 <div>
-                  <span className="block text-xs text-surface-500 font-medium">Montant demandé</span>
+                  <span className="block text-xs text-surface-500 font-medium mb-1">Montant demandé</span>
                   <span className="text-lg font-bold font-mono text-surface-900">{formatMontant(demande.montant_demande)}</span>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-surface-400 mt-0.5" />
                 <div>
-                  <span className="block text-xs text-surface-500 font-medium">Durée du remboursement</span>
+                  <span className="block text-xs text-surface-500 font-medium mb-1">Durée du remboursement</span>
                   <span className="text-base font-semibold text-surface-800">{demande.duree_demandee} mois</span>
                 </div>
               </div>
               <div className="flex items-start gap-3 col-span-2">
-                <Briefcase className="w-5 h-5 text-surface-400 mt-0.5" />
-                <div>
-                  <span className="block text-xs text-surface-500 font-medium">Objet du prêt</span>
-                  <p className="text-sm text-surface-800 mt-1 bg-surface-50 p-3 rounded-lg border border-surface-100">{demande.objet_pret}</p>
+                <div className="w-full">
+                  <span className="block text-xs text-surface-500 font-medium mb-1">Objet du prêt</span>
+                  <p className="text-sm text-surface-800 bg-surface-50 p-3 rounded-lg border border-surface-100">{demande.objet_pret}</p>
                 </div>
               </div>
               {demande.garantie && (
                 <div className="flex items-start gap-3 col-span-2">
-                  <ShieldCheck className="w-5 h-5 text-surface-400 mt-0.5" />
                   <div>
-                    <span className="block text-xs text-surface-500 font-medium">Nature de la garantie</span>
-                    <p className="text-sm text-surface-800 mt-1">{demande.garantie}</p>
+                    <span className="block text-xs text-surface-500 font-medium mb-1">Nature de la garantie</span>
+                    <p className="text-sm text-surface-800">{demande.garantie}</p>
                   </div>
                 </div>
               )}
@@ -100,25 +96,25 @@ export default function DemandeDetailsPage() {
 
           {/* Informations du Garant */}
           <div className="card p-6">
-            <h2 className="text-base font-semibold text-surface-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <ShieldCheck size={18} className="text-emerald-500" /> Solvabilité & Garant rattaché
+            <h2 className="text-base font-semibold text-surface-900 mb-4 border-b pb-2">
+              Solvabilité & Garant rattaché
             </h2>
             {demande.garant ? (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-xs text-surface-500">Nom complet du garant</span>
+                  <span className="block text-xs text-surface-500 border-b pb-0.5 mb-1">Nom complet du garant</span>
                   <span className="text-sm font-medium text-surface-900">{demande.garant.prenom} {demande.garant.nom}</span>
                 </div>
                 <div>
-                  <span className="block text-xs text-surface-500">Numéro de CIN</span>
+                  <span className="block text-xs text-surface-500 border-b pb-0.5 mb-1">Numéro de CIN</span>
                   <span className="text-sm font-mono font-medium text-surface-900">{demande.garant.cin}</span>
                 </div>
                 <div>
-                  <span className="block text-xs text-surface-500">Téléphone</span>
+                  <span className="block text-xs text-surface-500 border-b pb-0.5 mb-1">Téléphone</span>
                   <span className="text-sm text-surface-800">{demande.garant.telephone}</span>
                 </div>
                 <div>
-                  <span className="block text-xs text-surface-500">Relation avec l'emprunteur</span>
+                  <span className="block text-xs text-surface-500 border-b pb-0.5 mb-1">Relation avec l'emprunteur</span>
                   <span className="text-sm text-surface-800">{demande.garant.relation_client}</span>
                 </div>
                 <div className="col-span-2 mt-2 p-3 bg-emerald-50 text-emerald-900 rounded-lg flex items-center justify-between">
@@ -140,8 +136,8 @@ export default function DemandeDetailsPage() {
         <div className="space-y-6">
           {/* Fiche Client Emprunteur */}
           <div className="card p-6">
-            <h2 className="text-base font-semibold text-surface-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <User size={18} className="text-brand-500" /> Profil Emprunteur
+            <h2 className="text-base font-semibold text-surface-900 mb-4 border-b pb-2">
+              Profil Emprunteur
             </h2>
             {demande.client ? (
               <div className="space-y-3">

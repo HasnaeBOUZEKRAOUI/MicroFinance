@@ -48,7 +48,7 @@ export default function Dashboard() {
       />
 
       {/* ── Section 1 : Les Chiffres Clés (KPIs) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
         <StatCard 
           label="Total Clients" 
           value={stats.total_clients.toLocaleString()} 
@@ -61,13 +61,7 @@ export default function Dashboard() {
           icon={UserCheck} 
           color="purple" 
         />
-        <StatCard 
-          label="Demandes en attente" 
-          value={stats.demandes_attente} 
-          icon={FileText} 
-          color="amber" 
-        />
-       
+
       </div>
 
           </div>

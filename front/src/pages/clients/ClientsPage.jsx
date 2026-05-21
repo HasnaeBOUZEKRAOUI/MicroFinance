@@ -255,27 +255,6 @@ export default function ClientsPage() {
           ) : null
         }
       />
-{/* Remplacement du bloc de statistiques des clients */}
-<div className="grid grid-cols-3 gap-4 mb-6">
-  <StatCard 
-    label="Total clients" 
-    value={data?.total ?? meta?.total ?? '—'} 
-    icon={Users} 
-    color="brand" 
-  />
-  <StatCard 
-    label="VIP" 
-    value={(data?.total ?? meta?.total) ? clients.filter(c => c.est_vip).length : '—'} 
-    icon={UserCheck} 
-    color="blue" 
-  />
-  <StatCard 
-    label="Liste noire" 
-    value={(data?.total ?? meta?.total) ? clients.filter(c => c.est_sur_liste_noire).length : '—'} 
-    icon={AlertTriangle} 
-    color="red" 
-  />
-</div>
 
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">

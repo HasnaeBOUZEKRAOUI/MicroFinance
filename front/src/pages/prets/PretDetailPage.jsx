@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCallback, useState } from 'react'
-import { ArrowLeft, Plus, CheckCircle } from 'lucide-react'
 import { pretsApi, paiementsApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant, formatTaux } from '../../utils/helpers'
@@ -80,7 +79,7 @@ export default function PretDetailPage() {
   return (
     <div>
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-surface-800/60 hover:text-brand-600 mb-5 transition-colors">
-        <ArrowLeft size={15} /> Retour aux prêts
+        ← Retour aux prêts
       </button>
 
       {/* Header */}
@@ -175,7 +174,7 @@ export default function PretDetailPage() {
                           onClick={() => { setSaveErr(''); setModal({ echeanceId: e.id }) }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors"
                         >
-                          <Plus size={11} /> Payer
+                          Payer
                         </button>
                       )}
                     </td>

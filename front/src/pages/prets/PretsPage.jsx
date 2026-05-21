@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Eye } from 'lucide-react'
-import { pretsApi, demandesApi } from '../../api/services' // 👈 Importation de demandesApi
+import { pretsApi, demandesApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { formatDate, formatMontant, formatTaux } from '../../utils/helpers'
-import { PageHeader, Badge, Modal, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
-import { CreditCard, TrendingUp, AlertTriangle, CheckCircle, Calendar } from 'lucide-react'
+import { PageHeader, Badge, Modal, Pagination, Spinner, Empty, ErrorAlert } from '../../components/ui'
+
 // ─── COMPOSANT FORMULAIRE (AVEC SELECT DE DEMANDES APPROUVÉES) ───────────────
 function PretForm({ onSave, loading, error }) {
   const [f, setF] = useState({
@@ -15,12 +14,10 @@ function PretForm({ onSave, loading, error }) {
   const [demandesApprouvees, setDemandesApprouvees] = useState([])
   const [loadingDemandes, setLoadingDemandes] = useState(false)
 
-  // Chargement des demandes approuvées au montage du formulaire
   useEffect(() => {
     const fetchDemandes = async () => {
       setLoadingDemandes(true)
       try {
-        // On filtre par statut APPROUVEE (adapte la clé ou la valeur selon ton API Laravel)
         const res = await demandesApi.list({ statut: 'APPROUVEE', per_page: 100 })
         setDemandesApprouvees(res.data?.data || res.data || [])
       } catch (err) {
@@ -30,8 +27,7 @@ function PretForm({ onSave, loading, error }) {
       }
     }
     fetchDemandes()
-  } // eslint-disable-next-line react-hooks/exhaustive-deps
-  , [])
+  }, [])
 
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -39,8 +35,6 @@ function PretForm({ onSave, loading, error }) {
     <form onSubmit={e => { e.preventDefault(); onSave(f) }} className="space-y-4">
       <ErrorAlert message={error} />
       <div className="grid grid-cols-2 gap-4">
-        
-        {/* Remplacement de l'input par un Select */}
         <div className="col-span-2 md:col-span-1">
           <label className="label">Demande approuvée *</label>
           <select 
@@ -99,86 +93,67 @@ export default function PretsPage() {
 
   const STATUTS = ['', 'EN_COURS', 'SOLDE', 'EN_RETARD', 'EN_CONTENTIEUX', 'RESTRUCTURE', 'ABANDONNE']
 
-  const stats = {
-    total:    prets.length,
-    enCours:  prets.filter(p => p.statut_pret === 'EN_COURS').length,
-    enRetard: prets.filter(p => p.statut_pret === 'EN_RETARD').length,
-    soldes:   prets.filter(p => p.statut_pret === 'SOLDE').length,
-  }
-
   return (
     <div>
-      <PageHeader
-        title="Prêts"
-        subtitle="Portefeuille de prêts actifs et archivés"
-      />
-
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total prêts"  value={data?.meta?.total ?? '—'} icon={CreditCard}    color="brand" />
-        <StatCard label="En cours"     value={stats.enCours}             icon={TrendingUp}     color="blue" />
-        <StatCard label="En retard"    value={stats.enRetard}            icon={AlertTriangle}  color="red" />
-        <StatCard label="Soldés"       value={stats.soldes}              icon={CheckCircle}    color="brand" />
+      <div className="flex justify-between items-center mb-6">
+        <PageHeader
+          title="Prêts"
+          subtitle="Portefeuille de prêts actifs et archivés"
+        />
+        
       </div>
 
-      <div className="card p-0">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">
+      <div className="card bg-transparent shadow-none p-0">
+        <div className="flex items-center gap-3 px-5 py-4 bg-white rounded-xl border border-surface-150 mb-4">
           <select className="input w-52 py-2" value={statut} onChange={e => { setStatut(e.target.value); setPage(1) }}>
             {STATUTS.map(s => <option key={s} value={s}>{s || 'Tous les statuts'}</option>)}
           </select>
         </div>
 
         {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
-: error   ? <div className="p-6"><ErrorAlert message={error} /></div>
-: prets.length === 0 ? <Empty message="Aucun prêt trouvé." />
-: (
-  <div className="overflow-x-auto">
-    <table className="w-full">
-      <thead className="bg-surface-50 border-b border-surface-100">
-        {/* 🌟 Changement ici : le dernier élément est 'Actions' */}
-        <tr>{['Référence', 'Client', 'Montant demandé', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', 'Actions'].map(h => <th key={h} className="th text-left py-3 px-4 text-xs font-semibold text-surface-800/60">{h}</th>)}</tr>
-      </thead>
-      <tbody className="divide-y divide-surface-100">
-        {prets.map(p => (
-          <tr key={p.id} className="table-row hover:bg-surface-50/50 transition-colors">
-            <td className="td font-mono text-xs font-medium text-brand-700">{p.reference}</td>
-            <td className="td">{p.demande_credit?.client?.personne?.prenom} {p.demande_credit?.client?.personne?.nom}</td>
-            <td className="td font-mono text-xs">{formatMontant(p.demande_credit?.montant_demande)}</td>
-            <td className="td font-mono text-xs">{formatMontant(p.montant_accorde)}</td>
-            <td className="td text-xs">{formatTaux(p.taux_interet)}</td>
-            <td className="td text-xs">{formatDate(p.date_debut)}</td>
-            <td className="td text-xs">{formatDate(p.date_fin)}</td>
-            <td className="td text-xs text-center">{p.periode_grace} mois</td>
-            <td className="td"><Badge statut={p.statut_pret} /></td>
-            
-            {/* 🌟 Double bouton d'action en fin de ligne */}
-            <td className="td">
-              <div className="flex items-center gap-1.5">
-                {/* Bouton 1 : Voir la fiche générale du prêt */}
-                <button 
-                  onClick={() => navigate(`/prets/${p.id}`)} 
-                  className="p-1.5 rounded-lg text-surface-600 hover:bg-brand-50 hover:text-brand-600 transition-colors" 
-                  title="Voir la fiche du prêt"
-                >
-                  <Eye size={14} />
-                </button>
-
-                {/* Bouton 2 : Accéder directement aux échéances / tableau d'amortissement */}
-                <button 
-                  onClick={() => navigate(`/prets/${p.id}/echeances`)} // 👈 Ton lien vers la liste des échéances
-                  className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 hover:text-purple-700 transition-colors" 
-                  title="Voir l'échéancier de paiements"
-                >
-                  <Calendar size={14} />
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
-        <div className="px-5 pb-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
+        : error   ? <div className="p-6 bg-white rounded-xl border"><ErrorAlert message={error} /></div>
+        : prets.length === 0 ? <div className="bg-white rounded-xl border p-6"><Empty message="Aucun prêt trouvé." /></div>
+        : (
+          <div className="overflow-x-auto">
+            {/* 🌟 Utilisation de border-separate et border-spacing-y-3 pour créer de la marge entre chaque prêt */}
+            <table className="w-full border-separate" style={{ borderSpacing: '0 12px' }}>
+              <thead>
+                <tr className="bg-transparent">
+                  {['Référence', 'Client', 'Montant demandé', 'Montant accordé', 'Taux', 'Début', 'Fin', 'Grâce', 'Statut', 'Actions'].map(h => (
+                    <th key={h} className="text-left py-2 px-4 text-xs font-semibold text-surface-800/60 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {prets.map(p => (
+                  <tr key={p.id} className="bg-white hover:shadow-sm transition-all group">
+                    {/* On ajoute des bordures spécifiques à chaque cellule pour simuler une ligne de carte autonome */}
+                    <td className="td font-mono text-xs font-medium text-brand-700 py-4 px-4 border-y border-l border-surface-100 rounded-l-xl">{p.reference}</td>
+                    <td className="td py-4 px-4 border-y border-surface-100">{p.demande_credit?.client?.personne?.prenom} {p.demande_credit?.client?.personne?.nom}</td>
+                    <td className="td font-mono text-xs py-4 px-4 border-y border-surface-100">{formatMontant(p.demande_credit?.montant_demande)}</td>
+                    <td className="td font-mono text-xs py-4 px-4 border-y border-surface-100">{formatMontant(p.montant_accorde)}</td>
+                    <td className="td text-xs py-4 px-4 border-y border-surface-100">{formatTaux(p.taux_interet)}</td>
+                    <td className="td text-xs py-4 px-4 border-y border-surface-100">{formatDate(p.date_debut)}</td>
+                    <td className="td text-xs py-4 px-4 border-y border-surface-100">{formatDate(p.date_fin)}</td>
+                    <td className="td text-xs text-center py-4 px-4 border-y border-surface-100">{p.periode_grace} mois</td>
+                    <td className="td py-4 px-4 border-y border-surface-100"><Badge statut={p.statut_pret} /></td>
+                    
+                    <td className="td py-4 px-4 border-y border-r border-surface-100 rounded-r-xl">
+                      <button 
+                        onClick={() => navigate(`/prets/${p.id}/echeances`)}
+                        className="px-3 py-1 rounded-lg text-xs font-medium border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors" 
+                        title="Voir l'échéancier de paiements"
+                      >
+                        Échéancier
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-4 bg-white rounded-xl border p-4"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
       </div>
 
       <Modal open={modal === 'create'} onClose={closeModal} title="Décaisser un prêt" size="lg">

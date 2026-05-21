@@ -159,10 +159,7 @@ export default function ProduitsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <StatCard label="Total produits" value={meta?.total ?? produits.length} icon={Layers} color="brand" />
-        <StatCard label="Produits actifs" value={produits.filter(p => p?.actif).length} icon={Layers} color="blue" />
-      </div>
+     
 
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">
@@ -223,7 +220,7 @@ export default function ProduitsPage() {
                     </td>
                     <td className="td py-3 px-4">
                       <div className="flex items-center gap-1 justify-end min-w-[60px]">
-                        {user?.role === 'admin' ? (
+                        {user?.role === 'ADMIN' ? (
                           <>
                             <button onClick={() => { setSelected(p); setModal('edit') }} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors"><Pencil size={14} /></button>
                             <button onClick={() => { setSelected(p); setModal('delete') }} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>

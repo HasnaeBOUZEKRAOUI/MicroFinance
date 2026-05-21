@@ -106,16 +106,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('produit-credits.frais', FraisController::class)->shallow();
 
     // Demandes de Crédit
-    Route::post('/demande-credits/{id}/affecter', [DemandeCreditController::class, 'prendreEnCharge']);    Route::post('demande-credits/{demandeCredit}/evaluer-risque',[DemandeCreditController::class, 'evaluerRisque']);
+    Route::post('/demande-credits/{id}/affecter', [DemandeCreditController::class, 'prendreEnCharge']);  
+    Route::post('demande-credits/{demandeCredit}/evaluer-risque',[DemandeCreditController::class, 'evaluerRisque']);
     Route::post('demande-credits/{demandeCredit}/approuver',     [DemandeCreditController::class, 'approuver']);
     Route::post('demande-credits/{demandeCredit}/rejeter',       [DemandeCreditController::class, 'rejeter']);
     Route::apiResource('demande-credits', DemandeCreditController::class);
     
     Route::get('produits-credits/options', [ProduitCreditController::class, 'options']);
     // Prêts
-    Route::get('prets/{pret}/echeancier',   [PretController::class, 'echeancier']);
     Route::get('prets/{pret}/solde-restant',[PretController::class, 'soldeRestant']);
     Route::apiResource('prets', PretController::class);
+    Route::get('prets/{pret}/echeances', [PretController::class, 'echeancier']);
+
 
     // Échéances (imbriquées sous prêts)
     Route::post('prets/{pret}/echeances/{echeance}/marquer-payee', [EcheanceController::class, 'marquerPayee']);
@@ -123,7 +125,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('prets.echeances', EcheanceController::class)
         ->only(['index', 'show', 'update'])
         ->shallow();
-
     // Paiements
     Route::post('paiements/{paiement}/valider', [PaiementController::class, 'valider']);
     Route::apiResource('paiements', PaiementController::class)->except(['update']);

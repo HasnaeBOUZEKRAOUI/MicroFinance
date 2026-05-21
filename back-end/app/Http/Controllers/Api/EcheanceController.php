@@ -7,18 +7,17 @@ use App\Models\Echeance;
 use App\Models\Pret;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Api\PretController;
 
 class EcheanceController extends Controller
 {
     /** Liste des échéances d'un prêt */
     public function index(Pret $pret): JsonResponse
-    {
-        $echeances = $pret->echeances()
-            ->orderBy('numero_echeance')
-            ->get();
-
-        return response()->json($echeances);
-    }
+{
+    // On force l'utilisation de la logique centralisée dans PretController 
+    // ou on réplique le traitement des retards ici pour être safe !
+    return app(PretController::class)->echeancier($pret);
+}
 
     public function show(Pret $pret, Echeance $echeance): JsonResponse
     {

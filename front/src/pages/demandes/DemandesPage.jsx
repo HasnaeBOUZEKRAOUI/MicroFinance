@@ -407,7 +407,7 @@ function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser 
         {/* 🌟 FIX : C'est l'AGENT qui voit le bouton Décaisser quand le statut est APPROUVEE */}
         {demande.statut_demande === 'APPROUVEE' && (
           <button onClick={() => onAction('decaisser', demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
-            <Banknote size={11}/> Remettre les fonds (Décaisser)
+             Remettre les fonds (Décaisser)
           </button>
         )}
       </>
@@ -563,12 +563,7 @@ export default function DemandesPage() {
       />
 
       {/* Bloc indicateurs KPI */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Total Dossiers" value={data?.total ?? data?.meta?.total ?? '—'} icon={FileText} color="brand" />
-        <StatCard label="En Instance" value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'EN_ATTENTE').length : '—'} icon={Clock} color="amber" />
-        <StatCard label="Comités Approuvés" value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'APPROUVEE').length : '—'} icon={ThumbsUp} color="blue" />
-        <StatCard label="Dossiers Rejetés" value={(data?.total ?? data?.meta?.total) ? demandes.filter(d => d.statut_demande === 'REJETEE').length : '—'} icon={ThumbsDown} color="red" />
-      </div>
+     
 
       {/* Zone de Filtrage et Recherche */}
       <div className="card p-0">
@@ -580,7 +575,6 @@ export default function DemandesPage() {
           <select className="input w-48 py-2 text-sm" value={statut} onChange={e => { setStatut(e.target.value); setPage(1) }}>
             {STATUTS_OPTS.map(s => <option key={s} value={s}>{s ? s.replace(/_/g, ' ') : 'Tous les statuts'}</option>)}
           </select>
-          <button className="btn-secondary py-2 text-xs ml-auto" onClick={refresh}><RefreshCw size={13} /> Actualiser</button>
         </div>
 
         {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>

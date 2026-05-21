@@ -43,7 +43,7 @@ export const pretsApi = {
   get:          (id)     => api.get(`/prets/${id}`),
   create:       (data)   => api.post('/prets', data),
   update:       (id, d)  => api.put(`/prets/${id}`, d),
-  echeancier: (pretId) => api.get(`/prets/${pretId}/echeances`),
+  echeancier: (pretId, page = 1) => api.get(`/prets/${pretId}/echeances?page=${page}`),
   soldeRestant: (id)     => api.get(`/prets/${id}/solde-restant`),
 }
 
@@ -89,4 +89,5 @@ export const produitsApi = {
 }
 export const vision360Api = {
   getProfile: (searchTerm) => api.get('/vision360/client', { params: { search: searchTerm } }),
+  
 }

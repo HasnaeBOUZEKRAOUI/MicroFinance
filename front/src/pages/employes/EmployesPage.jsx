@@ -110,10 +110,7 @@ export default function EmployesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <StatCard label="Total employés" value={data?.meta?.total ?? '—'} icon={Users} color="brand" />
-        <StatCard label="Agents actifs"  value={data?.meta?.total ?? employes.length} icon={UserCheck} color="blue" />
-      </div>
+      
 
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100">
