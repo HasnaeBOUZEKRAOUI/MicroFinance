@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
 class MouvementCaisse extends Model
 {
     use HasFactory;
@@ -18,16 +19,15 @@ class MouvementCaisse extends Model
         'montant',
         'libelle',
         'reference_id',
-        'reference_type'
     ];
-
     public function employe()
     {
         return $this->belongsTo(Employe::class);
     }
 
-    public function reference()
-    {
-        return $this->morphTo();
-    }
+   // ✅ Relation directe vers Paiement sans morphTo
+public function paiement()
+{
+    return $this->belongsTo(Paiement::class, 'reference_id');
+}
 }

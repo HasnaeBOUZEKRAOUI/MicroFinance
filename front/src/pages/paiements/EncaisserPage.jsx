@@ -3,15 +3,15 @@ import { pretsApi, paiementsApi } from '../../api/services'
 import { formatMontant, formatDate } from '../../utils/helpers'
 import { PageHeader, Spinner, ErrorAlert, Modal } from '../../components/ui'
 import { Search, CreditCard, DollarSign, Calendar, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react'
-
+import { useAuth } from '../../context/AuthContext'
 export default function EncaisserPage() {
   const [prets, setPrets] = useState([])
   const [selectedPretId, setSelectedPretId] = useState('')
-  
-  // 🌟 MODIFICATION : echeances contiendra uniquement le tableau de données de la page active
+  const { user } = useAuth();
+
+
   const [echeances, setEcheances] = useState([])
   
-  // 🌟 ÉTATS SYNCED AVEC LE BACKEND LARAVEL
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
@@ -33,7 +33,6 @@ export default function EncaisserPage() {
     observation: ''
   })
 
-  // 1. Charger la liste des prêts actifs au démarrage
   useEffect(() => {
     const loadPrets = async () => {
       setLoadingPrets(true)
@@ -99,12 +98,15 @@ export default function EncaisserPage() {
   }
   const handleSavePaiement = async (e) => {
   e.preventDefault();
+  console.log("USER COMPLET :", user);
+  console.log("employe_id :", user?.id);
   setSubmitting(true);
   setError('');
   
   try {
     const payload = {
       echeance_id: parseInt(selectedEcheance.id),
+      employe_id:            user.id, 
       mode_paiement: formPaiement.mode_paiement.toUpperCase(), 
       montant: parseFloat(formPaiement.montant),
       date_paiement: new Date().toISOString().split('T')[0],
@@ -143,7 +145,7 @@ export default function EncaisserPage() {
     alert("Encaissé avec succès !"); // Petit feedback visuel de confirmation
 
   } catch (err) {
-    console.error("Erreur complète :", err);
+    console.error("REPONSE SERVEUR :", err.response?.data); // ← ajoute ça
     if (err.response?.status === 422) {
       const validationErrors = err.response.data.errors;
       const firstErrorKey = Object.keys(validationErrors)[0];

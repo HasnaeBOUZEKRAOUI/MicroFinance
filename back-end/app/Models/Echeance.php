@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Paiement; 
 
 class Echeance extends Model
 {
@@ -51,10 +52,10 @@ class Echeance extends Model
      * Une échéance peut recevoir plusieurs paiements ou transactions.
      * (Appelé par `$echeance->load('paiements...')` dans ton contrôleur)
      */
-    public function paiements(): HasMany
-    {
-        return $this->hasMany(Transaction::class, 'echeance_id');
-    }
+    public function paiements()
+{
+    return $this->hasMany(Paiement::class);
+}
 
     // ── Mutateurs & Accesseurs (Attributs calculés) ────────────────
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Pret;
 use App\Models\DemandeCredit;
+use App\Models\MouvementCaisse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
@@ -30,7 +31,6 @@ class PretController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
-    /** Décaisser un prêt (création depuis une demande approuvée) + Génération des échéances */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -59,13 +59,10 @@ class PretController extends Controller
         $periodeGrace = (int) ($validated['periode_grace'] ?? 0);
         $debut = Carbon::parse($validated['date_debut']);
         
-        // La date de fin s'allonge du nombre de mois de la période de grâce
         $dateFin = $debut->copy()->addMonths($duree + $periodeGrace);
 
-        // Déclaration de la variable pour y accéder hors du scope de la transaction
         $pret = null;
 
-        // Utilisation d'une transaction pour s'assurer que tout s'insère ou rien du tout
         DB::transaction(function () use ($validated, $demande, $debut, $dateFin, $duree, $periodeGrace, &$pret) {
             
             // 1. Création du prêt
@@ -80,7 +77,14 @@ class PretController extends Controller
                 'periode_grace'     => $periodeGrace,
                 'capital_restant'   => $validated['montant_accorde'],
             ]);
-
+            MouvementCaisse::create([
+                'employe_id'     => auth()->user()->employe_id ?? 1, // Agent connecté
+                'num_caisse'     => 'CAISSE-PRINCIPALE',
+                'type_mouvement' => 'SORTIE', // Sortie d'argent pour le client
+                'montant'        => $validated['montant_accorde'],
+                'libelle'        => "Décaissement initial du Prêt " . $pret->reference,
+                'reference_id'   => $pret->id,
+            ]);
             // 2. Variables de calcul pour le plan d'amortissement
             $capitalRestantDu = (float) $validated['montant_accorde'];
             $montantPrincipalParEcheance = $capitalRestantDu / $duree; 
@@ -187,8 +191,6 @@ class PretController extends Controller
                 // 2. Comparaison
                 if (in_array($echeance->statut, ['EN_ATTENTE', 'PARTIELLEMENT_PAYEE', 'EN_RETARD']) && $dateLimite->lt($dateDuJour)) {
                     
-                    // 🌟 FORCE LE CALCUL : En passant "false" en deuxième paramètre, 
-                    // diffInDays renvoie une valeur absolue sans comparaison de fuseau horaire
                     $joursRetard = (int) $dateDuJour->diffInDays($dateLimite, false);
                     
                     // Si jamais le calcul donne une valeur négative ou nulle par anomalie
@@ -225,11 +227,10 @@ class PretController extends Controller
                 }
             }
     
-            // On recharge les données fraîches directement depuis MySQL
             $echeancesPaginees = \Illuminate\Support\Facades\DB::table('echeances')
             ->where('pret_id', $pret->id)
             ->orderBy('numero_echeance')
-            ->paginate(5); // Applique la pagination côté serveur
+            ->paginate(5); 
 
         return response()->json($echeancesPaginees);
 
@@ -246,7 +247,7 @@ class PretController extends Controller
         return response()->json([
             'pret_id'       => $pret->id,
             'reference'     => $pret->reference,
-            'solde_restant' => $pret->capital_restant, // Utilisation directe de ton champ existant
+            'solde_restant' => $pret->capital_restant, 
         ]);
     }
 }

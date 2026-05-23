@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Paiement;
 use App\Models\Echeance;
+use App\Models\MouvementCaisse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -39,86 +40,98 @@ class PaiementController extends Controller
 
     public function store(Request $request): JsonResponse
 {
-    if ($request->has('reference_transaction') && trim($request->reference_transaction) === '') {
-        $request->merge(['reference_transaction' => null]);
-    }
+    try {
 
-    $validated = $request->validate([
-        'echeance_id'           => 'required|exists:echeances,id',
-        'employe_id'            => 'nullable|exists:employes,id',
-        'date_paiement'         => 'required|date',
-        'montant'               => 'required|numeric|min:0.01',
-        'mode_paiement'         => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
-        'reference_transaction' => 'nullable|string|unique:paiements,reference_transaction',
-        'observation'           => 'nullable|string|max:500',
-    ]);
+        if ($request->has('reference_transaction') && trim($request->reference_transaction) === '') {
+            $request->merge(['reference_transaction' => null]);
+        }
 
-    if (empty($validated['employe_id'])) {
-        $premierEmploye = Employe::first();
-        $validated['employe_id'] = $premierEmploye ? $premierEmploye->id : null;
-    }
+        $validated = $request->validate([
+            'echeance_id'           => 'required|exists:echeances,id',
+            'employe_id'            => 'required|exists:employes,id',
+            'date_paiement'         => 'required|date',
+            'montant'               => 'required|numeric|min:0.01',
+            'mode_paiement'         => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
+            'reference_transaction' => 'nullable|string|unique:paiements,reference_transaction',
+            'observation'           => 'nullable|string|max:500',
+        ]);
 
-    $paiement = DB::transaction(function () use ($validated) {
+        $paiement = DB::transaction(function () use ($validated) {
 
-        // 1. Création du paiement
-        $paiement = Paiement::create($validated);
+            $employe = Employe::first();
 
-        // 2. Charger l'échéance liée
-        $echeance = Echeance::findOrFail($validated['echeance_id']);
+            // =========================
+            // ECHEANCE
+            // =========================
 
-        // 3. Ajouter le montant payé
-        $nouveauMontantPaye =
-            (float)$echeance->montant_paye +
-            (float)$validated['montant'];
+            $echeance = Echeance::findOrFail($validated['echeance_id']);
 
-        $echeance->montant_paye = $nouveauMontantPaye;
+            // =========================
+            // PAIEMENT
+            // =========================
 
-        // 4. Calcul du total dû avec pénalités
-        $totalDu =
-            (float)$echeance->total_du +
-            (float)$echeance->penalites;
+            $paiement = Paiement::create([
+                'echeance_id' => $validated['echeance_id'],
+                'employe_id'     => $validated['employe_id'], // ← depuis le request
+                'date_paiement' => $validated['date_paiement'],
+                'montant' => $validated['montant'],
+                'mode_paiement' => $validated['mode_paiement'],
+                'reference_transaction' => $validated['reference_transaction'] ?? null,
+                'observation' => $validated['observation'] ?? null,
+                'est_valide' => true
+            ]);
 
-        // 5. Déterminer le statut
-        if ($nouveauMontantPaye >= $totalDu) {
+            // =========================
+            // UPDATE ECHEANCE
+            // =========================
 
+            $echeance->montant_paye = $echeance->paiements()
+            ->where('est_valide', true)
+            ->sum('montant');
+        
+        $total = $echeance->total_du + $echeance->penalites;
+        
+        if ($echeance->montant_paye >= $total) {
             $echeance->statut = 'PAYEE';
-            $echeance->jours_retard = 0;
-
-        } elseif ($nouveauMontantPaye > 0) {
-
+        } elseif ($echeance->montant_paye > 0) {
             $echeance->statut = 'PARTIELLEMENT_PAYEE';
-
         } else {
-
             $echeance->statut = 'EN_ATTENTE';
         }
-
-        // 6. Sauvegarde échéance
+        
         $echeance->save();
 
-        // 7. Mise à jour capital restant du prêt
-        $pret = $echeance->pret;
+            // =========================
+            // MOUVEMENT CAISSE
+            // =========================
 
-        $capitalRestant =
-            $pret->echeances()
-                ->sum(DB::raw('total_du - montant_paye'));
+                MouvementCaisse::create([
+                    'employe_id'     => $validated['employe_id'], // ← depuis le request
+                    'num_caisse'     => 'CAISSE-01',
+                    'type_mouvement' => 'ENTREE',
+                    'montant'        => $validated['montant'],
+                    'libelle'        => 'Paiement échéance #' . $echeance->numero_echeance,
+                    'reference_id'   => $paiement->id,
+                ]);
+        
 
-        $pret->capital_restant = max($capitalRestant, 0);
+            return $paiement;
+        });
 
-        // Si tout est payé
-        if ($capitalRestant <= 0) {
-            $pret->statut_pret = 'SOLDE';
-        }
+        return response()->json([
+            'success' => true,
+            'paiement' => $paiement
+        ], 201);
 
-        $pret->save();
-
-        return $paiement;
-    });
-
-    return response()->json(
-        $paiement->load('echeance', 'employe.personne'),
-        201
-    );
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'trace'   => $e->getTraceAsString() // ← ajoute ça
+        ], 500);
+    }
 }
 /*
      * Détails d'un paiement spécifique
