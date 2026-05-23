@@ -23,8 +23,7 @@ api.interceptors.response.use(
   err => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token')
-      // On évite window.location si possible pour ne pas casser l'état React, 
-      // mais c'est une solution radicale qui fonctionne.
+      
       window.location.href = '/login'
     }
     return Promise.reject(err)

@@ -38,34 +38,89 @@ class PaiementController extends Controller
 
 
     public function store(Request $request): JsonResponse
-    {
-        if ($request->has('reference_transaction') && trim($request->reference_transaction) === '') {
-            $request->merge(['reference_transaction' => null]);
-        }
-    
-        $validated = $request->validate([
-            'echeance_id'           => 'required|exists:echeances,id',
-            'employe_id'            => 'nullable|exists:employes,id',
-            'date_paiement'         => 'required|date',
-            'montant'               => 'required|numeric|min:0.01',
-            'mode_paiement'         => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
-            'reference_transaction' => 'nullable|string|unique:paiements,reference_transaction',
-            'observation'           => 'nullable|string|max:500',
-        ]);
-    
-        // FIX SÉCURITÉ : Si aucun employe_id n'est envoyé, on en attribue un par défaut pour le test
-        if (empty($validated['employe_id'])) {
-            $premierEmploye = Employe::first();
-            $validated['employe_id'] = $premierEmploye ? $premierEmploye->id : null;
-        }
-    
-        $paiement = DB::transaction(function () use ($validated) {
-            return Paiement::create($validated);
-        });
-    
-        return response()->json($paiement->load('echeance', 'employe.personne'), 201);
+{
+    if ($request->has('reference_transaction') && trim($request->reference_transaction) === '') {
+        $request->merge(['reference_transaction' => null]);
     }
-    /**
+
+    $validated = $request->validate([
+        'echeance_id'           => 'required|exists:echeances,id',
+        'employe_id'            => 'nullable|exists:employes,id',
+        'date_paiement'         => 'required|date',
+        'montant'               => 'required|numeric|min:0.01',
+        'mode_paiement'         => 'required|in:ESPECES,VIREMENT,CHEQUE,MOBILE_MONEY,PRELEVEMENT',
+        'reference_transaction' => 'nullable|string|unique:paiements,reference_transaction',
+        'observation'           => 'nullable|string|max:500',
+    ]);
+
+    if (empty($validated['employe_id'])) {
+        $premierEmploye = Employe::first();
+        $validated['employe_id'] = $premierEmploye ? $premierEmploye->id : null;
+    }
+
+    $paiement = DB::transaction(function () use ($validated) {
+
+        // 1. Création du paiement
+        $paiement = Paiement::create($validated);
+
+        // 2. Charger l'échéance liée
+        $echeance = Echeance::findOrFail($validated['echeance_id']);
+
+        // 3. Ajouter le montant payé
+        $nouveauMontantPaye =
+            (float)$echeance->montant_paye +
+            (float)$validated['montant'];
+
+        $echeance->montant_paye = $nouveauMontantPaye;
+
+        // 4. Calcul du total dû avec pénalités
+        $totalDu =
+            (float)$echeance->total_du +
+            (float)$echeance->penalites;
+
+        // 5. Déterminer le statut
+        if ($nouveauMontantPaye >= $totalDu) {
+
+            $echeance->statut = 'PAYEE';
+            $echeance->jours_retard = 0;
+
+        } elseif ($nouveauMontantPaye > 0) {
+
+            $echeance->statut = 'PARTIELLEMENT_PAYEE';
+
+        } else {
+
+            $echeance->statut = 'EN_ATTENTE';
+        }
+
+        // 6. Sauvegarde échéance
+        $echeance->save();
+
+        // 7. Mise à jour capital restant du prêt
+        $pret = $echeance->pret;
+
+        $capitalRestant =
+            $pret->echeances()
+                ->sum(DB::raw('total_du - montant_paye'));
+
+        $pret->capital_restant = max($capitalRestant, 0);
+
+        // Si tout est payé
+        if ($capitalRestant <= 0) {
+            $pret->statut_pret = 'SOLDE';
+        }
+
+        $pret->save();
+
+        return $paiement;
+    });
+
+    return response()->json(
+        $paiement->load('echeance', 'employe.personne'),
+        201
+    );
+}
+/*
      * Détails d'un paiement spécifique
      */
     public function show(Paiement $paiement): JsonResponse

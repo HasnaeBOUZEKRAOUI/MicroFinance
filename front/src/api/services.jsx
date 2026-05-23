@@ -49,22 +49,10 @@ export const pretsApi = {
 
 // ── Paiements ─────────────────────────────────────
 export const paiementsApi = {
-  // Liste et filtre l'historique global des paiements
   list: (params) => api.get('/paiements', { params }),
-  
-  // Enregistrer un nouvel encaissement (utilisé dans la modale d'EncaisserPage)
-  // POST /api/paiements
   create: (data) => api.post('/paiements', data),
-  
-  // Voir les détails d'un reçu de paiement spécifique
   show: (id) => api.get(`/paiements/${id}`),
-  
-  // Annuler un paiement (déclenche le Soft Delete côté Laravel)
-  // DELETE /api/paiements/{id}
   cancel: (id) => api.delete(`/paiements/${id}`),
-  
-  // Forcer la validation ou re-validation d'un paiement
-  // POST /api/paiements/{id}/valider
   validate: (id) => api.post(`/paiements/${id}/valider`),
 }
 
@@ -89,5 +77,5 @@ export const produitsApi = {
 }
 export const vision360Api = {
   getProfile: (searchTerm) => api.get('/vision360/client', { params: { search: searchTerm } }),
-  
+
 }

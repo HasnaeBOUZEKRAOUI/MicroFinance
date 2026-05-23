@@ -98,63 +98,63 @@ export default function EncaisserPage() {
     })
   }
   const handleSavePaiement = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError('');
+  e.preventDefault();
+  setSubmitting(true);
+  setError('');
+  
+  try {
+    const payload = {
+      echeance_id: parseInt(selectedEcheance.id),
+      mode_paiement: formPaiement.mode_paiement.toUpperCase(), 
+      montant: parseFloat(formPaiement.montant),
+      date_paiement: new Date().toISOString().split('T')[0],
+      reference_transaction: formPaiement.reference_transaction?.trim() || null,
+      observation: formPaiement.observation?.trim() || null
+    };
+  
+    // 1. Enregistrement en BDD
+    await paiementsApi.create(payload);
     
-    try {
-      const payload = {
-        echeance_id: parseInt(selectedEcheance.id),
-        mode_paiement: formPaiement.mode_paiement.toUpperCase(), 
-        montant: parseFloat(formPaiement.montant),
-        date_paiement: new Date().toISOString().split('T')[0],
-        reference_transaction: formPaiement.reference_transaction?.trim() || null,
-        observation: formPaiement.observation?.trim() || null
-      };
+    // 2. RECHARGEMENT DES DONNÉES FRAÎCHES (Depuis ton PretController paginé)
+    const reloadRes = await pretsApi.echeancier(selectedPretId, currentPage);
     
-      // 1. Enregistrement en BDD
-      await paiementsApi.create(payload);
-      
-      // 2. RECHARGEMENT DES DONNÉES FRAÎCHES (Depuis ton PretController paginé)
-      const reloadRes = await pretsApi.echeancier(selectedPretId, currentPage);
-      
-      let nouvellesEcheances = [];
-      if (reloadRes.data && reloadRes.data.data) {
-        nouvellesEcheances = reloadRes.data.data;
-        setEcheances(nouvellesEcheances); // Met à jour le tableau global ("Déjà réglé" va changer ici)
-      } else if (Array.isArray(reloadRes.data)) {
-        nouvellesEcheances = reloadRes.data;
-        setEcheances(nouvellesEcheances);
-      }
-  
-      // 3. DESACTIVER LE BOUTON / FERMER LA SÉLECTION
-      // En remettant selectedEcheance à null, ton interface va fermer la modale d'encaissement
-      // ou masquer le formulaire de saisie pour cette échéance.
-      setSelectedEcheance(null);
-  
-      // Optionnel : Si tu as un état pour réinitialiser les champs du formulaire
-      setFormPaiement({
-        montant: '',
-        mode_paiement: 'ESPECES',
-        reference_transaction: '',
-        observation: ''
-      });
-  
-      alert("Encaissé avec succès !"); // Petit feedback visuel de confirmation
-  
-    } catch (err) {
-      console.error("Erreur complète :", err);
-      if (err.response?.status === 422) {
-        const validationErrors = err.response.data.errors;
-        const firstErrorKey = Object.keys(validationErrors)[0];
-        setError(validationErrors[firstErrorKey][0]);
-      } else {
-        setError(err.response?.data?.message || "Une erreur est survenue lors de l'encaissement.");
-      }
-    } finally {
-      setSubmitting(false);
+    let nouvellesEcheances = [];
+    if (reloadRes.data && reloadRes.data.data) {
+      nouvellesEcheances = reloadRes.data.data;
+      setEcheances(nouvellesEcheances); // Met à jour le tableau global ("Déjà réglé" va changer ici)
+    } else if (Array.isArray(reloadRes.data)) {
+      nouvellesEcheances = reloadRes.data;
+      setEcheances(nouvellesEcheances);
     }
-  };
+
+    // 3. DESACTIVER LE BOUTON / FERMER LA SÉLECTION
+    // En remettant selectedEcheance à null, ton interface va fermer la modale d'encaissement
+    // ou masquer le formulaire de saisie pour cette échéance.
+    setSelectedEcheance(null);
+
+    // Optionnel : Si tu as un état pour réinitialiser les champs du formulaire
+    setFormPaiement({
+      montant: '',
+      mode_paiement: 'ESPECES',
+      reference_transaction: '',
+      observation: ''
+    });
+
+    alert("Encaissé avec succès !"); // Petit feedback visuel de confirmation
+
+  } catch (err) {
+    console.error("Erreur complète :", err);
+    if (err.response?.status === 422) {
+      const validationErrors = err.response.data.errors;
+      const firstErrorKey = Object.keys(validationErrors)[0];
+      setError(validationErrors[firstErrorKey][0]);
+    } else {
+      setError(err.response?.data?.message || "Une erreur est survenue lors de l'encaissement.");
+    }
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <div className="space-y-6">
       <PageHeader title="Guichet d'encaissement" subtitle="Enregistrer les remboursements de mensualités" />
