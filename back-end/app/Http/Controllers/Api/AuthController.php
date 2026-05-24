@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employe;
+use App\Models\MouvementCaisse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -40,8 +41,33 @@ class AuthController extends Controller
         return response()->json(['message' => 'Déconnexion réussie.']);
     }
 
+  
     public function me(Request $request): JsonResponse
-    {
-        return response()->json($request->user()->load('personne'));
-    }
+{
+    $employe = $request->user()->load('personne');
+
+    // Dernière caisse utilisée
+    $dernierMouvement = \App\Models\MouvementCaisse::where('employe_id', $employe->id)
+        ->latest()
+        ->first();
+
+    // Calcul du solde caisse
+    $totalEntrees = \App\Models\MouvementCaisse::where('employe_id', $employe->id)
+        ->where('type_mouvement', 'ENTREE')
+        ->sum('montant');
+
+    $totalSorties = \App\Models\MouvementCaisse::where('employe_id', $employe->id)
+        ->where('type_mouvement', 'SORTIE')
+        ->sum('montant');
+
+    $soldeCaisse = $totalEntrees - $totalSorties;
+
+    return response()->json([
+        ...$employe->toArray(),
+
+        'num_caisse' => $dernierMouvement?->num_caisse ?? 'CAISSE-01',
+
+        'montant_caisse' => $soldeCaisse
+    ]);
+}
 }

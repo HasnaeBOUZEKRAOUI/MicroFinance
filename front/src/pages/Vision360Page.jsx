@@ -12,6 +12,7 @@ import {
 import { useApi } from '../hooks/useApi'
 import { formatDate, formatMontant, statutBadge } from '../utils/helpers'
 import { Badge, Spinner, ErrorAlert } from '../components/ui'
+import {useAuth} from '../context/AuthContext'
 
 // ─────────────────────────────────────────────────────────────────
 // Onglets 360° Horizontaux
@@ -554,7 +555,7 @@ function Client360Panel({ clientId }) {
   const [activeTab, setActiveTab] = useState('vision360')
   const fetcher = useCallback(() => clientsApi.get(clientId), [clientId])
   const { data: client, loading, error } = useApi(fetcher, [clientId])
-
+  const { user } = useAuth();
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-48 gap-2">
       <Spinner className="w-6 h-6"/>
@@ -586,7 +587,15 @@ function Client360Panel({ clientId }) {
           <span>N° I.N. : <strong className="text-surface-800">{client.nil??'—'}</strong></span>
           <span>Exp. : <strong className="text-surface-800">{formatDate(client.date_expiration_piece)}</strong></span>
           <span>Tél. : <strong className="text-surface-800">{client.personne?.telephone??'—'}</strong></span>
-          
+
+          <span className="ml-auto flex items-center gap-3 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+              N° Caisse : <strong>{user?.num_caisse ?? 'Non assignée'} </strong>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 text-brand-800 border border-brand-200">
+              Solde : <strong>{formatMontant(user?.montant_caisse ?? 0)}</strong>
+            </span>
+          </span>
         </div>
       </div>
 
@@ -665,7 +674,31 @@ export default function ClientsPage() {
             />
           </div>
 
-       
+          {/* Sélecteurs clients rapides */}
+          <div className="flex items-center gap-1.5 overflow-x-auto max-w-md py-1">
+            {loading ? (
+              <Spinner className="w-4 h-4 text-brand-600"/>
+            ) : (
+              clients.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedClientId(c.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                    selectedClientId === c.id
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'bg-surface-50 text-surface-700 hover:bg-surface-100'
+                  }`}
+                >
+                  {c.personne?.nom?.toUpperCase()}
+                  {c.est_vip && (
+                    <span className={`text-[9px] font-bold px-1 rounded ${selectedClientId===c.id?'bg-white/20 text-white':'bg-amber-100 text-amber-700'}`}>
+                      VIP
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
