@@ -11,7 +11,7 @@ class PersonneController extends Controller
 {
     public function index(): JsonResponse
     {
-        $personnes = Personne::with(['employe', 'client', 'prospect'])
+        $personnes = Personne::with(['employe', 'client'])
             ->paginate(20);
 
         return response()->json($personnes);
@@ -37,7 +37,7 @@ class PersonneController extends Controller
 
     public function show(Personne $personne): JsonResponse
     {
-        $personne->load(['employe', 'client', 'prospect']);
+        $personne->load(['employe', 'client']);
 
         return response()->json($personne);
     }

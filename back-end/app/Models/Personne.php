@@ -38,11 +38,7 @@ class Personne extends Model
         return $this->hasOne(Client::class);
     }
 
-    public function prospect(): HasOne
-    {
-        return $this->hasOne(Prospect::class);
-    }
-
+  
     // -------------------------------------------------------------------------
     // Accesseurs
     // -------------------------------------------------------------------------

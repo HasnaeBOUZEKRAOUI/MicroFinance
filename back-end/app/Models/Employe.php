@@ -61,12 +61,7 @@ class Employe extends Authenticatable
         return $this->hasMany(Employe::class, 'superviseur_id');
     }
 
-    /** Prospects dont cet employé est responsable */
-    public function prospects(): HasMany
-    {
-        return $this->hasMany(Prospect::class);
-    }
-
+   
     /** Clients gérés par cet employé */
     public function clients(): HasMany
     {

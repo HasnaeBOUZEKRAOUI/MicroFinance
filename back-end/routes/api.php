@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\api\AuthController;
 use App\Http\Controllers\api\PersonneController;
 use App\Http\Controllers\api\EmployeController;
-use App\Http\Controllers\api\ProspectController;
 use App\Http\Controllers\api\ClientController;
 use App\Http\Controllers\api\CompteController;
 use App\Http\Controllers\api\ProduitCreditController;
@@ -16,6 +15,8 @@ use App\Http\Controllers\api\PaiementController;
 use App\Http\Controllers\api\AlerteController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\Vision360Controller;
+use App\Http\Controllers\api\StatistiquesController;
+
 // ─────────────────────────────────────────────
 // Auth (public)
 // ─────────────────────────────────────────────
@@ -56,11 +57,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Personnes
     Route::apiResource('personnes', PersonneController::class);
 
-    
+    //Profile
+    Route::prefix('profile')->group(function () {
+        Route::get('/',         [ProfileController::class, 'show']);
+        Route::put('/',         [ProfileController::class, 'update']);
+        Route::put('/password', [ProfileController::class, 'updatePassword']);
+        Route::post('/photo',   [ProfileController::class, 'updatePhoto']);
+    });
 
-    // Prospects
-    Route::post('prospects/{prospect}/convertir', [ProspectController::class, 'convertir']);
-    Route::apiResource('prospects', ProspectController::class);
+    
 
     // ── Clients ─────────────────────────────────────────────────────
     // Actions métier
@@ -133,4 +138,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('alertes/{alerte}/acquitter',    [AlerteController::class, 'acquitter']);
     Route::get('prets/{pret}/alertes',           [AlerteController::class, 'parPret']);
     Route::apiResource('alertes', AlerteController::class)->except(['update']);
+
+    Route::prefix('statistiques')->group(function () {
+        Route::get('caisse',        [StatistiquesController::class, 'caisse']);
+        Route::get('agent/{id}',    [StatistiquesController::class, 'detailAgent']);
+    });
 });

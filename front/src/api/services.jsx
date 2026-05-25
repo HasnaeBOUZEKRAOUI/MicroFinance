@@ -79,3 +79,9 @@ export const vision360Api = {
   getProfile: (searchTerm) => api.get('/vision360/client', { params: { search: searchTerm } }),
 
 }
+
+// ── Statistiques Caisse ───────────────────────────────────────────────────
+export const statistiquesApi = {
+  caisse:      (params) => api.get('/statistiques/caisse', { params }),
+  detailAgent: (id, params) => api.get(`/statistiques/agent/${id}`, { params }),
+}

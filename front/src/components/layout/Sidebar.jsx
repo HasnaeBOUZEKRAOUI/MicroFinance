@@ -17,6 +17,7 @@ const navItems = [
   { to: '/produits',  label: 'Produits',  icon: FileText, roles: ['ADMIN','MANAGER'] }, // Uniquement Admin
   { to: '/prets',     label: 'Prêts',     icon: CreditCard, roles: [ 'AGENT_CREDIT'] },
   { to: '/encaisser', label: 'Paiements', icon: DollarSign, roles: ['AGENT_CREDIT'] },
+  { to: '/statistiques', label: 'Statistiques', icon: LayoutDashboard, roles: ['ADMIN'] }, // Uniquement Manager
 ]
 
 export default function Sidebar() {

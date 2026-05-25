@@ -15,6 +15,7 @@ import DemandeDetailsPage from './pages/demandes/DemandeDetailsPage';
 import PretDetailPage from './pages/prets/PretDetailPage';
 import EcheancesPretPage from './pages/prets/EcheancesPretPage';
 import EncaisserPage from './pages/paiements/EncaisserPage';
+import StatistiquesCaissePage from './pages/StatistiquesCaissePage';
 
 function App() {
   const { user, loading } = useAuth();
@@ -51,7 +52,8 @@ function App() {
               <Route path="/prets/:id" element={user ? <PretDetailPage /> : <Navigate to="/login" />} />
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />
               <Route path="/demandes/:id" element={user?<DemandeDetailsPage /> : <Navigate to="/login" />} />
-              <Route path="/encaisser" element={<EncaisserPage />} />              <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
+              <Route path="/encaisser" element={<EncaisserPage />} />         
+                   <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
               <Route path="/prets/:id/echeances" element={<EcheancesPretPage />} />
               {/* ── Routes Protégées Réservées STRICTEMENT aux Admins ── */}
               <Route 
@@ -65,6 +67,10 @@ function App() {
               <Route 
                 path="/produits"  
                 element={user && user.role === 'ADMIN' || 'MANAGER' ?<ProduitsPage /> : <Navigate to={getHomeRedirect()} replace />} 
+              />
+              <Route 
+                path="/statistiques"  
+                element={user && user.role === 'ADMIN'  ?<StatistiquesCaissePage /> : <Navigate to={getHomeRedirect()} replace />} 
               />
               
               {/* ── Redirections et Erreurs ── */}
