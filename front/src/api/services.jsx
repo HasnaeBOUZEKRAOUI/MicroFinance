@@ -85,3 +85,12 @@ export const statistiquesApi = {
   caisse:      (params) => api.get('/statistiques/caisse', { params }),
   detailAgent: (id, params) => api.get(`/statistiques/agent/${id}`, { params }),
 }
+
+export const profileApi = {
+  get:            ()      => api.get('/profile'),
+  update:         (data)  => api.put('/profile', data),
+  updatePassword: (data)  => api.put('/profile/password', data),
+  updatePhoto:    (data)  => api.post('/profile/photo', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+}

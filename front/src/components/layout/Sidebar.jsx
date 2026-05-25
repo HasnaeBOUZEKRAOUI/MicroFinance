@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useState } from 'react'
 import { 
   Users, FileText, CreditCard, DollarSign, 
-  UserCheck, Bell, LogOut, Landmark, LayoutDashboard 
+  UserCheck, Bell, LogOut, Landmark, LayoutDashboard ,UserCircle
 } from 'lucide-react'
 
 // 1. On ajoute les rôles autorisés pour chaque lien.
@@ -74,27 +74,34 @@ export default function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div className="px-3 py-3 border-t border-surface-100">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-50">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-100 text-brand-700 font-display font-bold text-sm">
-            {user?.personne?.prenom?.[0] ?? user?.nom_utilisateur?.[0] ?? '?'}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-surface-900 truncate">
-              {user?.personne?.prenom} {user?.personne?.nom}
-            </p>
-            <p className="text-[10px] text-surface-800/50 truncate uppercase tracking-wider font-medium">{user?.role}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 text-surface-800/50 transition-colors"
-            title="Déconnexion"
-          >
-            <LogOut size={14} />
-          </button>
-        </div>
-      </div>
+<div className="px-3 py-3 border-t border-surface-100 space-y-2">
+
+
+
+{/* ✅ Bouton profil */}
+<NavLink
+  to="/profile"
+  className={({ isActive }) => `
+    flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all
+    ${isActive
+      ? 'bg-brand-50 text-brand-700'
+      : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'}
+  `}
+>
+  <UserCircle size={18} />
+  <span>Mon Profil</span>
+</NavLink>
+
+{/* Logout */}
+<button
+  onClick={handleLogout}
+  disabled={loggingOut}
+  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
+>
+  <LogOut size={18} />
+  <span>Déconnexion</span>
+</button>
+</div>
     </aside>
   )
 }

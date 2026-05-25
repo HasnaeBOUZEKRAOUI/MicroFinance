@@ -38,6 +38,7 @@ class EmployeController extends Controller
         // Conserve votre pagination actuelle (ex: 20 par page)
         return response()->json($query->paginate(20));
     }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -65,6 +66,14 @@ class EmployeController extends Controller
             'date_creation'  => now()->toDateString(),
         ]);
 
+        // ── LOGIQUE AUTOMATIQUE DU NUMÉRO DE CAISSE ──
+        $numCaisse = null;
+        if ($validated['role'] === 'AGENT_CREDIT') {
+            // Exemple : Génération automatique (ici un nombre aléatoire ou basé sur l'ID d'une caisse)
+            // Vous pouvez remplacer rand(100, 999) par votre propre logique métier
+            $numCaisse = 'CAISSE-' . rand(100, 999); 
+        }
+
         $employe = Employe::create([
             'personne_id'    => $personne->id,
             'nom_utilisateur'=> $validated['nom_utilisateur'],
@@ -72,6 +81,7 @@ class EmployeController extends Controller
             'role'           => $validated['role'],
             'date_embauche'  => $validated['date_embauche'],
             'superviseur_id' => $validated['superviseur_id'] ?? null,
+            'num_caisse'     => $numCaisse, // Ajout automatique uniquement pour AGENT_CREDIT
         ]);
 
         return response()->json($employe->load('personne', 'superviseur'), 201);
@@ -96,6 +106,19 @@ class EmployeController extends Controller
 
         if (isset($validated['mot_de_passe'])) {
             $validated['mot_de_passe'] = Hash::make($validated['mot_de_passe']);
+        }
+
+        // ── MISE À JOUR DU NUMÉRO DE CAISSE EN CAS DE CHANGEMENT DE RÔLE ──
+        if (isset($validated['role'])) {
+            if ($validated['role'] === 'AGENT_CREDIT') {
+                // Si l'employé devient AGENT_CREDIT et n'a pas encore de caisse
+                if (empty($employe->num_caisse)) {
+                    $validated['num_caisse'] = 'CAISSE-' . rand(100, 999);
+                }
+            } else {
+                // Si son rôle change et n'est plus AGENT_CREDIT, on retire le numéro de caisse
+                $validated['num_caisse'] = null;
+            }
         }
 
         $employe->update($validated);

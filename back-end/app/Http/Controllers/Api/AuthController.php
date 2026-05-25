@@ -65,7 +65,7 @@ class AuthController extends Controller
     return response()->json([
         ...$employe->toArray(),
 
-        'num_caisse' => $dernierMouvement?->num_caisse ?? 'CAISSE-01',
+        'num_caisse' => $dernierMouvement?->num_caisse ?? 'N/A',
 
         'montant_caisse' => $soldeCaisse
     ]);

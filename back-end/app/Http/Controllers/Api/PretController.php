@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pret;
 use App\Models\DemandeCredit;
 use App\Models\MouvementCaisse;
+use App\Models\Employe;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
@@ -61,9 +62,14 @@ class PretController extends Controller
         
         $dateFin = $debut->copy()->addMonths($duree + $periodeGrace);
 
+        // Trouver l'agent connecté et sa caisse correspondante
+        $employeId = auth()->user()->employe_id ?? 1; 
+        $employe = Employe::find($employeId);
+        $numCaisseActive = $employe->num_caisse ?? 'CAISSE-PRINCIPALE';
+
         $pret = null;
 
-        DB::transaction(function () use ($validated, $demande, $debut, $dateFin, $duree, $periodeGrace, &$pret) {
+        DB::transaction(function () use ($validated, $demande, $debut, $dateFin, $duree, $periodeGrace, $employeId, $numCaisseActive, &$pret) {
             
             // 1. Création du prêt
             $pret = Pret::create([
@@ -77,14 +83,17 @@ class PretController extends Controller
                 'periode_grace'     => $periodeGrace,
                 'capital_restant'   => $validated['montant_accorde'],
             ]);
+
+            // Mouvement de Caisse avec le numéro de l'agent connecté
             MouvementCaisse::create([
-                'employe_id'     => auth()->user()->employe_id ?? 1, // Agent connecté
-                'num_caisse'     => 'CAISSE-PRINCIPALE',
-                'type_mouvement' => 'SORTIE', // Sortie d'argent pour le client
+                'employe_id'     => $employeId,
+                'num_caisse'     => $numCaisseActive, // Devient dynamique !
+                'type_mouvement' => 'SORTIE',
                 'montant'        => $validated['montant_accorde'],
                 'libelle'        => "Décaissement initial du Prêt " . $pret->reference,
                 'reference_id'   => $pret->id,
             ]);
+
             // 2. Variables de calcul pour le plan d'amortissement
             $capitalRestantDu = (float) $validated['montant_accorde'];
             $montantPrincipalParEcheance = $capitalRestantDu / $duree; 
@@ -97,19 +106,16 @@ class PretController extends Controller
             for ($i = 1; $i <= $totalEcheances; $i++) {
                 $dateEcheanceCourante->addMonth();
 
-                // Calcul des intérêts basés sur le capital qui reste à payer
                 $interetDu = $capitalRestantDu * $tauxMensuel;
 
-                // Gestion de la période de grâce
                 if ($i <= $periodeGrace) {
-                    $principalDu = 0; // Pas de remboursement de capital pendant la grâce
+                    $principalDu = 0; 
                 } else {
                     $principalDu = $montantPrincipalParEcheance;
                 }
 
                 $totalDu = $principalDu + $interetDu;
 
-                // Insertion directe dans la table échéance via le Query Builder (plus rapide dans une boucle)
                 DB::table('echeances')->insert([
                     'pret_id'           => $pret->id,
                     'numero_echeance'   => $i,
@@ -125,7 +131,6 @@ class PretController extends Controller
                     'updated_at'        => now(),
                 ]);
 
-                // On réduit le capital restant uniquement si on a amorti (hors période de grâce)
                 if ($i > $periodeGrace) {
                     $capitalRestantDu -= $principalDu;
                 }
@@ -141,7 +146,6 @@ class PretController extends Controller
     public function show(Pret $pret): JsonResponse
     {
         $pret->load(['demandeCredit.client.personne', 'demandeCredit.produitCredit', 'echeances', 'alertes']);
-
         return response()->json($pret);
     }
 
@@ -154,7 +158,6 @@ class PretController extends Controller
         ]);
 
         $pret->update($validated);
-
         return response()->json($pret);
     }
 
@@ -167,16 +170,14 @@ class PretController extends Controller
         }
 
         $pret->delete();
-
         return response()->json(['message' => 'Prêt supprimé avec succès.']);
     }
+
     public function echeancier(Pret $pret): JsonResponse
     {
         try {
             $aujourdhui = \Carbon\Carbon::now()->startOfDay();
             $echeances = $pret->echeances()->orderBy('numero_echeance')->get();
-            
-            // Taux de pénalité par jour (ex: 0.05% = 0.0005)
             $tauxJournalier = 0.0005; 
     
             foreach ($echeances as $echeance) {
@@ -184,38 +185,31 @@ class PretController extends Controller
                     continue;
                 }
             
-                // 1. On force la création de dates pures (Y-m-d) sans heures ni fuseaux horaires perturbateurs
                 $dateLimite = \Carbon\Carbon::createFromFormat('Y-m-d', \Carbon\Carbon::parse($echeance->date_echeance)->format('Y-m-d'))->startOfDay();
                 $dateDuJour = \Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->startOfDay();
             
-                // 2. Comparaison
                 if (in_array($echeance->statut, ['EN_ATTENTE', 'PARTIELLEMENT_PAYEE', 'EN_RETARD']) && $dateLimite->lt($dateDuJour)) {
                     
                     $joursRetard = (int) $dateDuJour->diffInDays($dateLimite, false);
                     
-                    // Si jamais le calcul donne une valeur négative ou nulle par anomalie
                     if ($joursRetard <= 0) {
-                        $joursRetard = (int) abs($joursRetard); // On prend la valeur absolue au cas où c'est inversé
+                        $joursRetard = (int) abs($joursRetard);
                     }
                     
-                    // Sécurité finale si toujours <= 0
                     if ($joursRetard <= 0) {
                         $joursRetard = 1;
                     }
             
-                    // 3. Calcul du reste à payer
                     $totalDu = (float) $echeance->total_du;
                     $montantPaye = (float) $echeance->montant_paye;
                     $resteAPayerMensuel = $totalDu - $montantPaye;
             
-                    // 4. Application des pénalités
                     $echeance->statut = 'EN_RETARD';
                     $echeance->jours_retard = $joursRetard;
                     
                     $calculPenalite = $resteAPayerMensuel * $tauxJournalier * $joursRetard;
                     $echeance->penalites = round($calculPenalite, 2);
                     
-                    // Sauvegarde brute en base de données
                     \Illuminate\Support\Facades\DB::table('echeances')
                         ->where('id', $echeance->id)
                         ->update([
@@ -228,19 +222,19 @@ class PretController extends Controller
             }
     
             $echeancesPaginees = \Illuminate\Support\Facades\DB::table('echeances')
-            ->where('pret_id', $pret->id)
-            ->orderBy('numero_echeance')
-            ->paginate(5); 
+                ->where('pret_id', $pret->id)
+                ->orderBy('numero_echeance')
+                ->paginate(5); 
 
-        return response()->json($echeancesPaginees);
+            return response()->json($echeancesPaginees);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Erreur calcul pénalités',
-            'message' => $e->getMessage()
-        ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erreur calcul pénalités',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-}
     
     public function soldeRestant(Pret $pret): JsonResponse
     {

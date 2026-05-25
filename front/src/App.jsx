@@ -16,6 +16,7 @@ import PretDetailPage from './pages/prets/PretDetailPage';
 import EcheancesPretPage from './pages/prets/EcheancesPretPage';
 import EncaisserPage from './pages/paiements/EncaisserPage';
 import StatistiquesCaissePage from './pages/StatistiquesCaissePage';
+import ProfilePage from './pages/ProfilePage'
 
 function App() {
   const { user, loading } = useAuth();
@@ -53,7 +54,8 @@ function App() {
               <Route path="/demandes"  element={user ? <DemandesPage />  : <Navigate to="/login" />} />
               <Route path="/demandes/:id" element={user?<DemandeDetailsPage /> : <Navigate to="/login" />} />
               <Route path="/encaisser" element={<EncaisserPage />} />         
-                   <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
+              <Route path="/alertes"   element={user ? <AlertesPage />   : <Navigate to="/login" />} />
+              <Route path="/profile"    element={user ? <ProfilePage />   : <Navigate to="/login" />} />
               <Route path="/prets/:id/echeances" element={<EcheancesPretPage />} />
               {/* ── Routes Protégées Réservées STRICTEMENT aux Admins ── */}
               <Route 

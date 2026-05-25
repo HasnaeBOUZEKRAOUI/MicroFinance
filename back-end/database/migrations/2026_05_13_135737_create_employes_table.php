@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('mot_de_passe');
             $table->enum('role', ['ADMIN', 'AGENT_CREDIT', 'MANAGER', 'SUPERVISEUR']);
             $table->date('date_embauche');
-            $table->string('num_caisse')->nullable()->nullable();
+            $table->string('num_caisse')->nullable();
+            $table->string('photo')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

@@ -25,9 +25,7 @@ function KpiCard({ title, value, subtitle, icon: Icon, color, trend }) {
     <div className="bg-white rounded-xl border border-surface-100 shadow-sm p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-surface-500">{title}</span>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
+        
       </div>
       <div>
         <p className="text-2xl font-bold text-surface-900 leading-tight">{value}</p>
@@ -89,7 +87,6 @@ export default function StatistiquesCaissePage() {
     num_caisse: '',
   })
 
-  // ✅ CORRIGÉ — statistiquesApi.caisse avec les filtres
   const fetchStats = async () => {
     setLoading(true)
     setError('')
@@ -154,7 +151,6 @@ export default function StatistiquesCaissePage() {
           <div className="flex items-end">
             <button onClick={fetchStats} disabled={loading}
               className="w-full h-9 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2">
-              {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Activity size={15} />}
               {loading ? 'Chargement...' : 'Actualiser'}
             </button>
           </div>

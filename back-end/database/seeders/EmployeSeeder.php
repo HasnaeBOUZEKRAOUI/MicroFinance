@@ -27,8 +27,10 @@ class EmployeSeeder extends Seeder
             'mot_de_passe' => Hash::make('admin123'), 
             'role' => 'ADMIN',
             'date_embauche' => now(),
+            'num_caisse' => null, // Pas de caisse pour l'admin
         ]);
 
+        // 2. Créer le MANAGER
         $p2 = Personne::create([
             'prenom' => 'Jean',
             'nom' => 'Manager',
@@ -42,11 +44,12 @@ class EmployeSeeder extends Seeder
             'personne_id' => $p2->id,
             'nom_utilisateur' => 'manager',
             'mot_de_passe' => Hash::make('manager123'),
-            'role' => 'MANAGER', // Correspond à votre enum
+            'role' => 'MANAGER',
             'date_embauche' => now(),
+            'num_caisse' => null, // Pas de caisse pour le manager
         ]);
 
-        // 3. Créer l'AGENT DE CRÉDIT
+        // 3. Créer l'AGENT DE CRÉDIT (avec numéro de caisse automatique)
         $p3 = Personne::create([
             'prenom' => 'Sarah',
             'nom' => 'Agent',
@@ -60,8 +63,9 @@ class EmployeSeeder extends Seeder
             'personne_id' => $p3->id,
             'nom_utilisateur' => 'agent',
             'mot_de_passe' => Hash::make('agent123'),
-            'role' => 'AGENT_CREDIT',
+            'role' => 'AGENT_CREDIT', // Déclenche l'attribution automatique
             'date_embauche' => now(),
+            'num_caisse' => 'CAISSE-' . rand(100, 999), // Génération automatique de sa caisse dédiée
         ]);
     }
 }

@@ -16,6 +16,7 @@ use App\Http\Controllers\api\AlerteController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\Vision360Controller;
 use App\Http\Controllers\api\StatistiquesController;
+use App\Http\Controllers\api\ProfileController;
 
 // ─────────────────────────────────────────────
 // Auth (public)
@@ -57,7 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Personnes
     Route::apiResource('personnes', PersonneController::class);
 
-    //Profile
+   
     Route::prefix('profile')->group(function () {
         Route::get('/',         [ProfileController::class, 'show']);
         Route::put('/',         [ProfileController::class, 'update']);
@@ -65,7 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/photo',   [ProfileController::class, 'updatePhoto']);
     });
 
-    
 
     // ── Clients ─────────────────────────────────────────────────────
     // Actions métier
