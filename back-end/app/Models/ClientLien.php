@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 /**
  * Model ClientLien
  * Représente une personne liée à un client (garant, mandataire,
@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ClientLien extends Model
 {
+    use HasFactory;
     protected $table = 'client_liens';
 
     protected $fillable = [
