@@ -1,6 +1,6 @@
 # MicroFinance
 
-MicroTrack est une solution logicielle conçue pour optimiser le cycle de vie du microcrédit. Elle agit comme une plateforme intelligente permettant de gérer l’enrôlement  d'octroi de crédits et le suivi du recouvrement.
+Cet application est une solution logicielle conçue pour optimiser le cycle de vie du microcrédit. Elle agit comme une plateforme intelligente permettant de gérer l’enrôlement  d'octroi de crédits et le suivi du recouvrement.
 
 ---
 
