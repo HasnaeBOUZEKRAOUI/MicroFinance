@@ -12,135 +12,155 @@ use App\Http\Controllers\api\DemandeCreditController;
 use App\Http\Controllers\api\PretController;
 use App\Http\Controllers\api\EcheanceController;
 use App\Http\Controllers\api\PaiementController;
-use App\Http\Controllers\api\AlerteController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\Vision360Controller;
 use App\Http\Controllers\api\StatistiquesController;
 use App\Http\Controllers\api\ProfileController;
 
-// ─────────────────────────────────────────────
-// Auth (public)
-// ─────────────────────────────────────────────
-Route::post('auth/login', [AuthController::class, 'login']);
-
-// ─────────────────────────────────────────────
-// Routes protégées (Sanctum)
-// ─────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'role:ADMIN'])->group(function () {
-    
-    // Gestion des employés (CRUD complet)
-    Route::apiResource('employes', EmployeController::class);
-    
-    // Gestion des produits de crédit
-    Route::get('produits/{id}', [ProduitCreditController::class, 'show']);  // Voir les détails
-    Route::post('produits', [ProduitCreditController::class, 'store']);     // Ajouter
-    Route::put('produits/{id}', [ProduitCreditController::class, 'update']); // Modifier
-    Route::delete('produits/{id}', [ProduitCreditController::class, 'destroy']); // Supprimer
+// ════════════════════════════════════════════════════════════════
+//  1. ROUTES PUBLIQUES
+// ════════════════════════════════════════════════════════════════
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login']);
 });
 
-// Route accessible par d'autres rôles (ex: agents de crédit qui ont besoin de voir la liste)
-Route::middleware(['auth:sanctum', 'role:ADMIN,MANAGER'])->group(function () {
-    Route::get('produits', [ProduitCreditController::class, 'index']);
-    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
-
-});
-
+// ════════════════════════════════════════════════════════════════
+//  2. ROUTES AUTHENTIFIÉES – tous les rôles
+// ════════════════════════════════════════════════════════════════
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('clients/options', [ClientController::class, 'options']);
 
-    //vision 360
-    Route::get('/vision360', [Vision360Controller::class, 'index']);
-    Route::get('/vision360/search', [Vision360Controller::class, 'search']);
-    Route::get('/vision360/{id}', [Vision360Controller::class, 'show']);
-        Route::post('auth/logout', [AuthController::class, 'logout']);
-    Route::get('auth/me',      [AuthController::class, 'me']);
-
-    // Personnes
-    Route::apiResource('personnes', PersonneController::class);
-
-   
-    Route::prefix('profile')->group(function () {
-        Route::get('/',         [ProfileController::class, 'show']);
-        Route::put('/',         [ProfileController::class, 'update']);
-        Route::put('/password', [ProfileController::class, 'updatePassword']);
-        Route::post('/photo',   [ProfileController::class, 'updatePhoto']);
+    // ── Auth (session) ───────────────────────────────────────────
+    Route::prefix('auth')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('me',      [AuthController::class, 'me']);
     });
 
+    // ── Profil connecté ──────────────────────────────────────────
+    Route::prefix('profile')->group(function () {
+        Route::get('/',          [ProfileController::class, 'show']);
+        Route::put('/',          [ProfileController::class, 'update']);
+        Route::put('/password',  [ProfileController::class, 'updatePassword']);
+        Route::post('/photo',    [ProfileController::class, 'updatePhoto']);
+    });
 
-    // ── Clients ─────────────────────────────────────────────────────
-    // Actions métier
-    Route::get('clients/{client}/portefeuille', [ClientController::class, 'portefeuille']); 
-    Route::get ('clients/{client}/historique-prets',       [ClientController::class, 'historiquePrets']);
-    Route::get ('clients/{client}/blacklist',              [ClientController::class, 'blacklist']);
-    Route::get ('clients/{client}/comptes',                [ClientController::class, 'comptes']);
-    Route::post('clients/{client}/generer-pin',            [ClientController::class, 'genererPin']);
-    Route::post('clients/{client}/verifier-pin',           [ClientController::class, 'verifierPin']);
-    Route::post('clients/{client}/upload-photo',           [ClientController::class, 'uploadPhoto']);
+    // ── Personnes ────────────────────────────────────────────────
+    Route::apiResource('personnes', PersonneController::class);
 
-    // Liens (onglet "Lien")
-    Route::get   ('clients/{client}/liens',                [ClientController::class, 'liens']);
-    Route::post  ('clients/{client}/liens',                [ClientController::class, 'ajouterLien']);
-    Route::delete('clients/{client}/liens/{lien}',         [ClientController::class, 'supprimerLien']);
+    // ── Vision 360 ───────────────────────────────────────────────
+    Route::prefix('vision360')->group(function () {
+        Route::get('/',        [Vision360Controller::class, 'index']);
+        Route::get('/search',  [Vision360Controller::class, 'search']);
+        Route::get('/{id}',    [Vision360Controller::class, 'show']);
+    });
 
-    // Documents GED (onglet "GED")
-    Route::get   ('clients/{client}/documents',            [ClientController::class, 'documents']);
-    Route::post  ('clients/{client}/documents',            [ClientController::class, 'ajouterDocument']);
-    Route::delete('clients/{client}/documents/{document}', [ClientController::class, 'supprimerDocument']);
+    // ── Clients ──────────────────────────────────────────────────
+    // Routes statiques AVANT {client} pour éviter les conflits
+    Route::get('clients/options', [ClientController::class, 'options']);
 
+    // Sous-ressources par client
+    Route::prefix('clients/{client}')->group(function () {
+
+        // Consultation
+        Route::get('portefeuille',      [ClientController::class, 'portefeuille']);
+        Route::get('historique-prets',  [ClientController::class, 'historiquePrets']);
+        Route::get('prets',             [ClientController::class, 'prets']);
+        Route::get('comptes',           [ClientController::class, 'comptes']);
+        Route::get('alertes',           [ClientController::class, 'alertes']);
+        Route::get('blacklist',         [ClientController::class, 'blacklist']);
+
+        // Actions métier
+        Route::post('upload-photo',     [ClientController::class, 'uploadPhoto']);
+        Route::post('generer-pin',      [ClientController::class, 'genererPin']);
+        Route::post('verifier-pin',     [ClientController::class, 'verifierPin']);
+
+        // GED – Documents
+        Route::get('documents',                    [ClientController::class, 'documents']);
+        Route::post('documents',                   [ClientController::class, 'ajouterDocument']);
+        Route::delete('documents/{document}',      [ClientController::class, 'supprimerDocument']);
+
+        // Liens
+        Route::get('liens',                        [ClientController::class, 'liens']);
+        Route::post('liens',                       [ClientController::class, 'ajouterLien']);
+        Route::delete('liens/{lien}',              [ClientController::class, 'supprimerLien']);
+    });
+
+    // CRUD clients (après les routes custom)
     Route::apiResource('clients', ClientController::class);
-    
-    Route::get('clients/{client}/prets', [ClientController::class, 'prets']);
-    Route::get('clients/{client}/documents', [ClientController::class, 'documents']);
-    Route::get('clients/{client}/alertes', [ClientController::class, 'alertes']);
-    
-    // CRUD standard
-    Route::apiResource('clients', ClientController::class);
 
-    // Comptes
-    Route::post('comptes/{compte}/debiter',  [CompteController::class, 'debiter']);
-    Route::post('comptes/{compte}/crediter', [CompteController::class, 'crediter']);
+    // ── Comptes ──────────────────────────────────────────────────
+    Route::prefix('comptes/{compte}')->group(function () {
+        Route::post('debiter',   [CompteController::class, 'debiter']);
+        Route::post('crediter',  [CompteController::class, 'crediter']);
+    });
     Route::apiResource('comptes', CompteController::class);
-    Route::apiResource('clients', ClientController::class);
 
-    // Produits Crédit
+    // ── Produits Crédit ──────────────────────────────────────────
+    // Route statique AVANT {produitCredit}
+    Route::get('produit-credits/options', [ProduitCreditController::class, 'options']);
     Route::post('produit-credits/{produitCredit}/valider', [ProduitCreditController::class, 'valider']);
     Route::apiResource('produit-credits', ProduitCreditController::class);
 
-    // Frais (imbriqués sous produit-credits)
-    Route::post('produit-credits/{produitCredit}/frais/{frais}/simuler', [FraisController::class, 'simuler']);
+    // ── Frais (imbriqués sous produit-credits) ───────────────────
+    Route::post(
+        'produit-credits/{produitCredit}/frais/{frais}/simuler',
+        [FraisController::class, 'simuler']
+    );
     Route::apiResource('produit-credits.frais', FraisController::class)->shallow();
 
-    // Demandes de Crédit
-    Route::post('/demande-credits/{id}/affecter', [DemandeCreditController::class, 'prendreEnCharge']);  
-    Route::post('demande-credits/{demandeCredit}/evaluer-risque',[DemandeCreditController::class, 'evaluerRisque']);
-    Route::post('demande-credits/{demandeCredit}/approuver',     [DemandeCreditController::class, 'approuver']);
-    Route::post('demande-credits/{demandeCredit}/rejeter',       [DemandeCreditController::class, 'rejeter']);
+    // ── Demandes de Crédit ───────────────────────────────────────
+    Route::prefix('demande-credits/{demandeCredit}')->group(function () {
+        Route::post('affecter',       [DemandeCreditController::class, 'prendreEnCharge']);
+        Route::post('evaluer-risque', [DemandeCreditController::class, 'evaluerRisque']);
+        Route::post('approuver',      [DemandeCreditController::class, 'approuver']);
+        Route::post('rejeter',        [DemandeCreditController::class, 'rejeter']);
+    });
     Route::apiResource('demande-credits', DemandeCreditController::class);
-    
-    Route::get('produits-credits/options', [ProduitCreditController::class, 'options']);
-    // Prêts
-    Route::get('prets/{pret}/solde-restant',[PretController::class, 'soldeRestant']);
+
+    // ── Prêts ────────────────────────────────────────────────────
+    Route::prefix('prets/{pret}')->group(function () {
+        Route::get('solde-restant',  [PretController::class, 'soldeRestant']);
+        Route::get('echeances',      [PretController::class, 'echeancier']);
+    });
     Route::apiResource('prets', PretController::class);
-    Route::get('prets/{pret}/echeances', [PretController::class, 'echeancier']);
 
-
-    // Échéances (imbriquées sous prêts)
-    Route::post('prets/{pret}/echeances/{echeance}/marquer-payee', [EcheanceController::class, 'marquerPayee']);
-    Route::get('prets/{pret}/echeances/{echeance}/penalites',      [EcheanceController::class, 'penalites']);
+    // ── Échéances (imbriquées sous prêts) ────────────────────────
+    Route::prefix('prets/{pret}/echeances/{echeance}')->group(function () {
+        Route::post('marquer-payee', [EcheanceController::class, 'marquerPayee']);
+        Route::get('penalites',      [EcheanceController::class, 'penalites']);
+    });
     Route::apiResource('prets.echeances', EcheanceController::class)
         ->only(['index', 'show', 'update'])
         ->shallow();
-    // Paiements
+
+    // ── Paiements ────────────────────────────────────────────────
     Route::post('paiements/{paiement}/valider', [PaiementController::class, 'valider']);
     Route::apiResource('paiements', PaiementController::class)->except(['update']);
 
-    // Alertes
-    Route::post('alertes/{alerte}/acquitter',    [AlerteController::class, 'acquitter']);
-    Route::get('prets/{pret}/alertes',           [AlerteController::class, 'parPret']);
-    Route::apiResource('alertes', AlerteController::class)->except(['update']);
-
+    // ── Statistiques ─────────────────────────────────────────────
     Route::prefix('statistiques')->group(function () {
-        Route::get('caisse',        [StatistiquesController::class, 'caisse']);
-        Route::get('agent/{id}',    [StatistiquesController::class, 'detailAgent']);
+        Route::get('caisse',      [StatistiquesController::class, 'caisse']);
+        Route::get('agent/{id}',  [StatistiquesController::class, 'detailAgent']);
+    });
+
+    // ════════════════════════════════════════════════════════════
+    //  3. ROUTES RÉSERVÉES – ADMIN + MANAGER
+    // ════════════════════════════════════════════════════════════
+    Route::middleware('role:ADMIN,MANAGER')->group(function () {
+        Route::get('dashboard/stats', [DashboardController::class, 'getStats']);
+        Route::get('produits',        [ProduitCreditController::class, 'index']);
+    });
+
+    // ════════════════════════════════════════════════════════════
+    //  4. ROUTES RÉSERVÉES – ADMIN uniquement
+    // ════════════════════════════════════════════════════════════
+    Route::middleware('role:ADMIN')->group(function () {
+        Route::apiResource('employes', EmployeController::class);
+
+        Route::prefix('produits')->group(function () {
+            Route::get('/{id}',    [ProduitCreditController::class, 'show']);
+            Route::post('/',       [ProduitCreditController::class, 'store']);
+            Route::put('/{id}',    [ProduitCreditController::class, 'update']);
+            Route::delete('/{id}', [ProduitCreditController::class, 'destroy']);
+        });
     });
 });

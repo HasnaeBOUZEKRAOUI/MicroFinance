@@ -22,6 +22,7 @@ class Employe extends Authenticatable
         'mot_de_passe',
         'role',
         'date_embauche',
+        'photo'
     ];
 
     protected $hidden = [

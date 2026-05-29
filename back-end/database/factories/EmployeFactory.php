@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Personne;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
@@ -12,7 +11,7 @@ class EmployeFactory extends Factory
     {
         return [
             'personne_id'    => PersonneFactory::new()->create()->id,
-            'superviseur_id' => null, // géré dans le seeder
+            'superviseur_id' => null,
             'nom_utilisateur'=> $this->faker->unique()->userName(),
             'mot_de_passe'   => Hash::make('password'),
             'role'           => $this->faker->randomElement(['AGENT_CREDIT', 'MANAGER', 'SUPERVISEUR']),
@@ -22,22 +21,43 @@ class EmployeFactory extends Factory
         ];
     }
 
-    // ── États prédéfinis ──────────────────────────────
     public function admin(): static
     {
-        return $this->state(['role' => 'ADMIN']);
+        return $this->state(function () {
+            return [
+                'role'      => 'ADMIN',
+                'num_caisse'=> null,
+            ];
+        });
     }
 
     public function agentCredit(): static
     {
-        return $this->state([
-            'role'      => 'AGENT_CREDIT',
-            'num_caisse' => 'CAISSE-' . $this->faker->unique()->numerify('###'),
-        ]);
+        return $this->state(function () {
+            return [
+                'role'      => 'AGENT_CREDIT',
+                'num_caisse'=> 'CAISSE-' . $this->faker->unique()->numerify('###'),
+            ];
+        });
     }
 
     public function manager(): static
     {
-        return $this->state(['role' => 'MANAGER', 'num_caisse' => null]);
+        return $this->state(function () {
+            return [
+                'role'      => 'MANAGER',
+                'num_caisse'=> null,
+            ];
+        });
+    }
+
+    public function superviseur(): static
+    {
+        return $this->state(function () {
+            return [
+                'role'      => 'SUPERVISEUR',
+                'num_caisse'=> null,
+            ];
+        });
     }
 }

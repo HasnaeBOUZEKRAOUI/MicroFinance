@@ -262,19 +262,19 @@ function TabPassword({ onSaved }) {
     </form>
   )
 }
-
 // ─── Onglet Photo ─────────────────────────────────────────────────────────────
 function TabPhoto({ profile, onSaved, onPhotoUpdated }) {
-  const [preview, setPreview] = useState(null)
-  const [file, setFile]       = useState(null)
-  const [loading, setLoading] = useState(false)
-  const inputRef              = useRef()
+  const [preview, setPreview]       = useState(null)
+  const [savedPhotoUrl, setSavedUrl] = useState(null) // ✅ URL confirmée par le serveur
+  const [file, setFile]             = useState(null)
+  const [loading, setLoading]       = useState(false)
+  const inputRef                    = useRef()
 
   const handleFile = (e) => {
     const f = e.target.files[0]
     if (!f) return
     setFile(f)
-    setPreview(URL.createObjectURL(f))
+    setPreview(URL.createObjectURL(f)) // aperçu local immédiat
   }
 
   const handleUpload = async () => {
@@ -284,10 +284,21 @@ function TabPhoto({ profile, onSaved, onPhotoUpdated }) {
       const fd = new FormData()
       fd.append('photo', file)
       const res = await profileApi.updatePhoto(fd)
-      onPhotoUpdated(res.data.photo_url)
-      onSaved('Photo mise à jour avec succès !', 'success')
+
+      const newUrl = res.data.photo_url
+
+      // ✅ 1. Sauvegarder l'URL serveur en local avant de vider le preview
+      setSavedUrl(`/storage/${newUrl}`)
+
+      // ✅ 2. Notifier le parent
+      onPhotoUpdated(newUrl)
+
+      // ✅ 3. Maintenant on peut vider le preview et le fichier
       setPreview(null)
       setFile(null)
+
+      onSaved('Photo mise à jour avec succès !', 'success')
+
     } catch (e) {
       onSaved(e.response?.data?.message || 'Erreur upload photo.', 'error')
     } finally {
@@ -295,39 +306,81 @@ function TabPhoto({ profile, onSaved, onPhotoUpdated }) {
     }
   }
 
-  const currentPhoto = preview || (profile.photo ? `/storage/${profile.photo}` : null)
+  const handleCancel = () => {
+    setPreview(null)
+    setFile(null)
+  }
+
+  // ✅ Priorité : preview local → URL serveur confirmée → photo du profil → null
+  const currentPhoto =
+    preview                                           // 1. aperçu en cours de sélection
+    ?? savedPhotoUrl                                  // 2. URL confirmée après upload
+    ?? (profile.photo ? `/storage/${profile.photo}` : null) // 3. photo actuelle du profil
+
   const initials = `${profile.personne?.prenom?.[0] ?? ''}${profile.personne?.nom?.[0] ?? ''}`.toUpperCase()
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">
+
       {/* Avatar */}
       <div className="relative">
         <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-brand-100">
-          {currentPhoto
-            ? <img src={currentPhoto} alt="Photo" className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-brand-600">{initials}</div>
-          }
+          {currentPhoto ? (
+            <img
+            src={`http://127.0.0.1:8000/storage/${profile.photo}?t=${Date.now()}`}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-brand-600">
+              {initials}
+            </div>
+          )}
         </div>
-        <button onClick={() => inputRef.current.click()}
-          className="absolute bottom-0 right-0 w-9 h-9 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-brand-700 transition-colors">
+
+        <button
+          onClick={() => inputRef.current.click()}
+          className="absolute bottom-0 right-0 w-9 h-9 bg-brand-600 text-white rounded-full
+                     flex items-center justify-center shadow-md hover:bg-brand-700 transition-colors"
+        >
           <Camera size={15} />
         </button>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFile}
+        />
       </div>
 
+      {/* Nom */}
       <div className="text-center">
-        <p className="text-sm font-bold text-surface-800">{profile.personne?.prenom} {profile.personne?.nom}</p>
+        <p className="text-sm font-bold text-surface-800">
+          {profile.personne?.prenom} {profile.personne?.nom}
+        </p>
         <p className="text-xs text-surface-400 mt-0.5">@{profile.nom_utilisateur}</p>
       </div>
 
-      {preview && (
+      {/* Boutons — visibles seulement si un fichier est sélectionné */}
+      {file && (
         <div className="flex gap-3">
-          <button onClick={() => { setPreview(null); setFile(null) }} className="btn-secondary text-xs px-4 py-2">
+          <button
+            onClick={handleCancel}
+            className="btn-secondary text-xs px-4 py-2"
+          >
             Annuler
           </button>
-          <button onClick={handleUpload} disabled={loading}
-            className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5">
-            {loading ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={13} />}
+          <button
+            onClick={handleUpload}
+            disabled={loading}
+            className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
+          >
+            {loading
+              ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <Save size={13} />
+            }
             Enregistrer la photo
           </button>
         </div>
@@ -339,7 +392,6 @@ function TabPhoto({ profile, onSaved, onPhotoUpdated }) {
     </div>
   )
 }
-
 // ─── Onglet Historique ────────────────────────────────────────────────────────
 function TabHistorique({ historique }) {
   if (!historique?.length) {
@@ -417,7 +469,11 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden bg-brand-100 flex-shrink-0">
               {profile.photo
-                ? <img src={`/storage/${profile.photo}`} alt="" className="w-full h-full object-cover" />
+                ? <img
+                src={`http://127.0.0.1:8000/storage/${profile.photo}?t=${Date.now()}`}
+                alt=""
+                className="w-full h-full object-cover"
+              />
                 : <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-brand-600">{initials}</div>
               }
             </div>

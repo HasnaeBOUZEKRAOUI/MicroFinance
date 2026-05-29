@@ -170,9 +170,9 @@ class ProfileController extends Controller
         $employe->update(['photo' => $path]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Photo mise à jour avec succès.',
-            'photo_url' => Storage::url($path),
+            'success'   => true,
+            'photo_url' => $path,                    // photos/employes/xxx.jpg
+            'full_url'  => Storage::url($path),      // http://localhost:8000/storage/photos/employes/xxx.jpg
         ]);
     }
 }
