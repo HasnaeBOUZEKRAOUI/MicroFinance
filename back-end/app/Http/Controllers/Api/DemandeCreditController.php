@@ -13,23 +13,29 @@ use Illuminate\Support\Facades\DB;
 class DemandeCreditController extends Controller
 {
     public function index(Request $request): JsonResponse
-    {
-        $query = DemandeCredit::with(['client.personne', 'produitCredit', 'employe.personne', 'garant']);
+{
+    $query = DemandeCredit::with(['client.personne', 'produitCredit', 'employe.personne', 'garant']);
 
-        if ($request->filled('statut')) {
-            $query->where('statut_demande', $request->statut);
-        }
-
-        if ($request->filled('client_id')) {
-            $query->where('client_id', $request->client_id);
-        }
-
-        if ($request->filled('employe_id')) {
-            $query->where('employe_id', $request->employe_id);
-        }
-
-        return response()->json($query->latest()->paginate(20));
+    // ← Filtre par agent connecté (sauf MANAGER qui voit tout)
+    $user = auth()->user();
+    if ($user->role !== 'MANAGER') {
+        $query->where('employe_id', $user->id);
     }
+
+    if ($request->filled('statut')) {
+        $query->where('statut_demande', $request->statut);
+    }
+
+    if ($request->filled('client_id')) {
+        $query->where('client_id', $request->client_id);
+    }
+
+    if ($request->filled('employe_id')) {
+        $query->where('employe_id', $request->employe_id);
+    }
+
+    return response()->json($query->latest()->paginate(20));
+}
 
     public function store(Request $request): JsonResponse
     {

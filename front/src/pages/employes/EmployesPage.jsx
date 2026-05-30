@@ -6,7 +6,7 @@ import { formatDate } from '../../utils/helpers'
 import { PageHeader, Modal, ConfirmDialog, Pagination, Spinner, Empty, ErrorAlert, StatCard } from '../../components/ui'
 
 // Liste mise à jour avec tous les rôles gérés par l'application
-const ROLES = ['ADMIN', 'AGENT_CREDIT', 'CAISSIER', 'SUPERVISEUR', 'DIRECTEUR']
+const ROLES = ['ADMIN', 'AGENT_CREDIT', 'SUPERVISEUR', 'MANAGER']
 
 function EmployeForm({ initial = {}, onSave, loading, error }) {
   const isEdit = !!initial?.id

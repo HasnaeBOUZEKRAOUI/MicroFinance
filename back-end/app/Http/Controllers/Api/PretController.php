@@ -17,18 +17,44 @@ class PretController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Pret::with(['demandeCredit.client.personne', 'demandeCredit.produitCredit']);
-
+        // ✅ Récupérer l'employé connecté
+        $employe = auth()->user();
+    
+        if (!$employe) {
+            return response()->json(['message' => 'Employé non trouvé.'], 403);
+        }
+    
+        $query = Pret::with([
+            'demandeCredit.client.personne',
+            'demandeCredit.produitCredit',
+        ])
+        // ✅ Filtrer uniquement les prêts dont la demande appartient à l'agent connecté
+        ->whereHas('demandeCredit', function ($q) use ($employe) {
+            $q->where('employe_id', $employe->id);
+        });
+    
+        // Filtres additionnels
         if ($request->filled('statut')) {
             $query->where('statut_pret', $request->statut);
         }
-
+    
         if ($request->filled('client_id')) {
             $query->whereHas('demandeCredit', fn($q) =>
                 $q->where('client_id', $request->client_id)
             );
         }
-
+    
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('reference', 'like', "%{$s}%")
+                  ->orWhereHas('demandeCredit.client.personne', fn($p) =>
+                      $p->where('nom',    'like', "%{$s}%")
+                        ->orWhere('prenom','like', "%{$s}%")
+                  );
+            });
+        }
+    
         return response()->json($query->latest()->paginate(20));
     }
 
@@ -84,17 +110,15 @@ class PretController extends Controller
                 'capital_restant'   => $validated['montant_accorde'],
             ]);
 
-            // Mouvement de Caisse avec le numéro de l'agent connecté
             MouvementCaisse::create([
                 'employe_id'     => $employeId,
-                'num_caisse'     => $numCaisseActive, // Devient dynamique !
+                'num_caisse'     => $numCaisseActive, 
                 'type_mouvement' => 'SORTIE',
                 'montant'        => $validated['montant_accorde'],
                 'libelle'        => "Décaissement initial du Prêt " . $pret->reference,
                 'reference_id'   => $pret->id,
             ]);
 
-            // 2. Variables de calcul pour le plan d'amortissement
             $capitalRestantDu = (float) $validated['montant_accorde'];
             $montantPrincipalParEcheance = $capitalRestantDu / $duree; 
             $tauxMensuel = (float) $validated['taux_interet'] / 12;
@@ -145,7 +169,7 @@ class PretController extends Controller
 
     public function show(Pret $pret): JsonResponse
     {
-        $pret->load(['demandeCredit.client.personne', 'demandeCredit.produitCredit', 'echeances', 'alertes']);
+        $pret->load(['demandeCredit.client.personne', 'demandeCredit.produitCredit', 'echeances']);
         return response()->json($pret);
     }
 

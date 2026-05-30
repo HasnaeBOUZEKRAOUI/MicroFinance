@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import {
   clientsApi, demandesApi, pretsApi,
-  paiementsApi, alertesApi
+  paiementsApi
 } from '../api/services'
 import { useApi } from '../hooks/useApi'
 import { formatDate, formatMontant, statutBadge } from '../utils/helpers'
@@ -39,127 +39,178 @@ function Dl({ label, value, mono = false }) {
     </div>
   )
 }
-
-function Panel({ title, children, action }) {
+function Panel({ title, children, className = '' }) {
   return (
-    <div className="bg-white rounded-xl border border-surface-100 shadow-card overflow-hidden">
-      {(title || action) && (
-        <div className="flex items-center justify-between px-3 py-2 border-b border-surface-100 bg-surface-50/60">
-          {title && <h3 className="text-[10px] font-bold uppercase tracking-widest text-surface-800/50">{title}</h3>}
-          {action}
+    <div className={`bg-white rounded-xl border border-surface-100 shadow-card overflow-hidden ${className}`}>
+      {title && (
+        <div className="px-3 py-2 border-b border-surface-100 bg-surface-50/60">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-surface-800/50">{title}</h3>
         </div>
       )}
       {children}
     </div>
   )
 }
-
-// ─────────────────────────────────────────────────────────────────
-// ONGLET Vision 360°
-// ─────────────────────────────────────────────────────────────────
-function TabVision360({ client }) {
-  const demandes = client.demande_credits ?? client.demandes ?? []
-  const pretsActifs = demandes
-    .map(d => d.pret ?? d.prets)
-    .flat()
-    .filter(p => p !== null && p !== undefined)
-  const toutesEcheances = pretsActifs.flatMap(p =>
-    (p.echeances ?? []).map(e => ({ ...e, pretCode: p.code || p.reference }))
-  )
-
+ 
+function TableWrapper({ children }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {/* Demandes */}
-      <Panel title={`(${demandes.length}) Demande(s) de crédit`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-surface-50 border-b border-surface-100 text-[10px] uppercase text-surface-500">
-              <tr>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Code Demande</th>
-                <th className="px-3 py-2 text-right">Montant</th>
-                <th className="px-3 py-2 text-center">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100 text-xs">
-              {demandes.length === 0 ? (
-                <tr><td colSpan={4} className="p-4 text-center text-surface-400">Aucune demande enregistrée.</td></tr>
-              ) : demandes.map(d => (
-                <tr key={d.id} className="hover:bg-surface-50/50">
-                  <td className="px-3 py-2">{formatDate(d.created_at)}</td>
-                  <td className="px-3 py-2 font-mono text-surface-700">{d.code_demande ?? `DEM-${d.id}`}</td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold">{formatMontant(d.montant_demande)}</td>
-                  <td className="px-3 py-2 text-center"><Badge statut={d.statut_demande}/></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
-      {/* Prêts actifs */}
-      <Panel title={`(${pretsActifs.length}) Prêt(s) actif(s)`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-surface-50 border-b border-surface-100 text-[10px] uppercase text-surface-500">
-              <tr>
-                <th className="px-3 py-2">Code Prêt</th>
-                <th className="px-3 py-2">Date d'octroi</th>
-                <th className="px-3 py-2 text-right">Accordé</th>
-                <th className="px-3 py-2 text-right">Restant dû</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100 text-xs">
-              {pretsActifs.length === 0 ? (
-                <tr><td colSpan={4} className="p-4 text-center text-surface-400">Aucun prêt actif.</td></tr>
-              ) : pretsActifs.map(p => (
-                <tr key={p.id} className="hover:bg-surface-50/50">
-                  <td className="px-3 py-2 font-mono font-bold text-brand-600">{p.code ?? p.reference}</td>
-                  <td className="px-3 py-2">{formatDate(p.date_octroi)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-surface-900">{formatMontant(p.montant_accorde ?? p.montant_demande)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-red-600 font-bold">{formatMontant(p.capital_restant ?? 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
-      {/* Échéances */}
-      <Panel title={`(${toutesEcheances.length}) Échéance(s)`}>
-        <div className="overflow-x-auto max-h-[160px] overflow-y-auto">
-          <table className="w-full text-left">
-            <thead className="bg-surface-50 border-b border-surface-100 text-[10px] uppercase text-surface-500">
-              <tr>
-                <th className="px-3 py-2">Prêt</th>
-                <th className="px-3 py-2">Date Éch.</th>
-                <th className="px-3 py-2 text-center">Retard (j)</th>
-                <th className="px-3 py-2 text-right">Montant</th>
-                <th className="px-3 py-2 text-center">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100 text-xs">
-              {toutesEcheances.length === 0 ? (
-                <tr><td colSpan={5} className="p-4 text-center text-surface-400">Aucune échéance.</td></tr>
-              ) : toutesEcheances.slice(0, 5).map(e => (
-                <tr key={e.id} className="hover:bg-surface-50/50">
-                  <td className="px-3 py-2 font-mono text-brand-600">{e.pretCode}</td>
-                  <td className="px-3 py-2">{formatDate(e.date_echeance)}</td>
-                  <td className="px-3 py-2 text-center font-bold text-red-500">{e.jours_retard ?? 0}</td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold">{formatMontant(e.total_du)}</td>
-                  <td className="px-3 py-2 text-center">
-                    <span className={`badge text-[10px] ${statutBadge(e.statut)}`}>{e.statut}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left">{children}</table>
     </div>
   )
 }
+ 
+function Thead({ cols }) {
+  return (
+    <thead className="bg-surface-50 border-b border-surface-100 text-[10px] uppercase text-surface-500">
+      <tr>
+        {cols.map(c => <th key={c} className="px-3 py-2">{c}</th>)}
+      </tr>
+    </thead>
+  )
+}
+ 
+function EmptyRow({ cols, msg }) {
+  return (
+    <tr>
+      <td colSpan={cols} className="p-6 text-center text-surface-400 text-xs">{msg}</td>
+    </tr>
+  )
+}
+ 
 
+
+
+// ─────────────────────────────────────────────────────────────────
+// TabVision360 — utilise clientsApi.vision360(id) dédié
+// ─────────────────────────────────────────────────────────────────
+function TabVision360({ client }) {
+
+  const fetcher = useCallback(
+    () => clientsApi.vision360(client.id),
+    [client.id]
+  )
+  const { data, loading } = useApi(fetcher, [client.id])
+
+  const demandes    = data?.demandes    ?? []
+  const prets       = data?.pretsActifs ?? []
+  const echeances   = data?.echeances   ?? []
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner className="w-6 h-6"/>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+      {/* ── Demandes de crédit ── */}
+      <Panel title={`(${demandes.length}) Demande(s) de crédit`}>
+        <TableWrapper>
+          <Thead cols={['Date', 'Objet', 'Montant', 'Durée', 'Statut']}/>
+          <tbody className="divide-y divide-surface-100 text-xs">
+            {demandes.length === 0
+              ? <EmptyRow cols={5} msg="Aucune demande enregistrée."/>
+              : demandes.map(d => (
+                <tr key={d.id} className="hover:bg-surface-50/50">
+                  <td className="px-3 py-2">{formatDate(d.date_demande)}</td>
+                  <td className="px-3 py-2 text-surface-700 truncate max-w-[120px]">{d.objet_pret ?? '—'}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold">{formatMontant(d.montant)}</td>
+                  <td className="px-3 py-2 text-center">{d.duree_demandee ? `${d.duree_demandee} mois` : '—'}</td>
+                  <td className="px-3 py-2 text-center"><Badge statut={d.statut}/></td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </TableWrapper>
+      </Panel>
+
+      {/* ── Prêts actifs ── */}
+      <Panel title={`(${prets.length}) Prêt(s) actif(s)`}>
+        <TableWrapper>
+          <Thead cols={['Référence', "Date d'octroi", 'Accordé', 'Restant dû', 'Statut']}/>
+          <tbody className="divide-y divide-surface-100 text-xs">
+            {prets.length === 0
+              ? <EmptyRow cols={5} msg="Aucun prêt actif."/>
+              : prets.map(p => (
+                <tr key={p.id} className="hover:bg-surface-50/50">
+                  <td className="px-3 py-2 font-mono font-bold text-brand-600">
+                    {p.code ?? p.reference ?? `PRE-${p.id}`}
+                  </td>
+                  <td className="px-3 py-2">{formatDate(p.date_octroi)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMontant(p.montant_accorde)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-red-600 font-bold">
+                    {formatMontant(p.montant_restant ?? 0)}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <Badge statut={p.statut}/>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </TableWrapper>
+      </Panel>
+
+      {/* ── Échéances ── */}
+      <Panel title={`(${echeances.length}) Échéance(s)`} className="xl:col-span-2">
+        <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
+          <table className="w-full text-left">
+            <Thead cols={['Prêt', 'N°', 'Date Éch.', 'Total dû', 'Payé', 'Restant', 'Retard (j)', 'Pénalités', 'Statut']}/>
+            <tbody className="divide-y divide-surface-100 text-xs">
+              {echeances.length === 0
+                ? <EmptyRow cols={9} msg="Aucune échéance."/>
+                : echeances.map(e => {
+                  const restant = parseFloat(e.total_du ?? 0) - parseFloat(e.montant_paye ?? 0)
+                  const enRetard = (e.jours_retard_reel ?? e.jours_retard ?? 0) > 0
+                  return (
+                    <tr key={e.id} className={`hover:bg-surface-50/50 ${enRetard ? 'bg-red-50/40' : ''}`}>
+                      <td className="px-3 py-2 font-mono text-brand-600 font-bold">
+                        {e.pret_code ?? '—'}
+                      </td>
+                      <td className="px-3 py-2 text-center">{e.numero_echeance}</td>
+                      <td className="px-3 py-2">{formatDate(e.date_echeance)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold">
+                        {formatMontant(e.total_du)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-emerald-600">
+                        {formatMontant(e.montant_paye)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-red-600 font-bold">
+                        {formatMontant(restant)}
+                      </td>
+                      <td className="px-3 py-2 text-center font-bold text-red-500">
+                        {enRetard
+                          ? (e.jours_retard_reel ?? e.jours_retard)
+                          : <span className="text-surface-300">—</span>
+                        }
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-amber-600">
+                        {parseFloat(e.penalites ?? 0) > 0
+                          ? formatMontant(e.penalites)
+                          : <span className="text-surface-300">—</span>
+                        }
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`badge text-[10px] ${statutBadge(e.statut)}`}>
+                          {e.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
+              }
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+    </div>
+  )
+}
 // ─────────────────────────────────────────────────────────────────
 // ONGLET Fiche Signalétique
 // ─────────────────────────────────────────────────────────────────
@@ -197,51 +248,131 @@ function TabSignaletique({ client }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────
-// ONGLET GED Documents
-// ─────────────────────────────────────────────────────────────────
-function TabDocuments({ client }) {
-  const [search, setSearch] = useState('')
+const BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
+
+function TabDocuments({ client, refreshClient }) {
+  const [search, setSearch]     = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [intitule, setIntitule] = useState('')
+  const [file, setFile]         = useState(null)
+  const [preview, setPreview]   = useState(null) // nom fichier sélectionné
+
   const docs = (client.documents ?? []).filter(d =>
     !search || d.intitule?.toLowerCase().includes(search.toLowerCase())
   )
+
+  const BASE = 'http://127.0.0.1:8000'
+
+// Construire l'URL correctement depuis ce qui est disponible
+const getDocUrl = (doc) => {
+  if (doc.url) return `${BASE}${doc.url}`                          // "/storage/clients/..."
+  if (doc.chemin_fichier) return `${BASE}/storage/${doc.chemin_fichier}` // fallback
+  return null
+}
+
+const handleView = (doc) => {
+  const url = getDocUrl(doc)
+  if (!url) return alert('URL du document introuvable')
+  window.open(url, '_blank')
+}
+
+  // ── Upload (même pattern que TabPhoto) ───────────────────────
+  const handleUpload = async () => {
+    if (!intitule || !file) {
+      alert('Veuillez remplir tous les champs')
+      return
+    }
+    try {
+      setLoading(true)
+      const fd = new FormData()
+      fd.append('intitule', intitule)
+      fd.append('fichier', file)
+      await clientsApi.uploadDocument(client.id, fd)
+      setIntitule('')
+      setFile(null)
+      setPreview(null)
+      if (refreshClient) await refreshClient()
+    } catch (e) {
+      console.error(e)
+      alert('Erreur upload : ' + (e.response?.data?.message ?? e.message))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Supprimer ─────────────────────────────────────────────────
+  const handleDelete = async (documentId) => {
+    if (!confirm('Supprimer ce document ?')) return
+    try {
+      await clientsApi.deleteDocument(client.id, documentId)
+      if (refreshClient) await refreshClient()
+    } catch (e) {
+      console.error(e)
+      alert('Erreur suppression')
+    }
+  }
+
   return (
     <Panel title={`Gestion électronique des documents — Total : (${docs.length})`}>
+
+      {/* HEADER recherche */}
       <div className="flex gap-3 px-4 py-2.5 border-b border-surface-100 bg-surface-50/40">
         <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wide text-surface-800/40 block mb-1">Intitulé fichier</label>
-          <input className="input py-1 text-xs w-36" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher…"/>
-        </div>
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wide text-surface-800/40 block mb-1">Nom fichier</label>
-          <input className="input py-1 text-xs w-36" placeholder="Nom fichier…"/>
-        </div>
-        <div className="flex items-end">
-          <button className="btn-primary py-1 px-3 text-xs">Rechercher</button>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-surface-800/40 block mb-1">
+            Recherche
+          </label>
+          <input
+            className="input py-1 text-xs w-36"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher…"
+          />
         </div>
       </div>
+
       <div className="flex">
+
+        {/* TABLE */}
         <div className="flex-1 border-r border-surface-100">
           <div className="px-4 py-1.5 border-b border-surface-100 bg-surface-50/40">
             <p className="text-[10px] font-bold text-surface-800/40">Liste des documents</p>
           </div>
+
           {!docs.length ? (
             <p className="text-xs text-center text-surface-800/40 py-8">Aucun document.</p>
           ) : (
             <table className="w-full">
               <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>{['Intitulé fichier','Taille','Extension',''].map(h=><th key={h} className="th text-[10px]">{h}</th>)}</tr>
+                <tr>
+                  {['Intitulé', 'Taille', 'Extension', 'Actions'].map(h => (
+                    <th key={h} className="th text-[10px]">{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
-                {docs.map(d=>(
+                {docs.map(d => (
                   <tr key={d.id} className="table-row">
                     <td className="td text-xs">{d.intitule}</td>
-                    <td className="td text-xs font-mono">{d.taille_listible??'—'}</td>
-                    <td className="td text-xs">{d.type_mime?.split('/')[1]?.toUpperCase()??'—'}</td>
+                    <td className="td text-xs font-mono">{d.taille_listible ?? '—'}</td>
+                    <td className="td text-xs">
+                      {d.type_mime?.split('/')[1]?.toUpperCase() ?? '—'}
+                    </td>
                     <td className="td">
-                      <div className="flex gap-1">
-                        <button className="px-2 py-0.5 text-[10px] rounded hover:bg-brand-50 hover:text-brand-600 border border-surface-100 transition-colors">Voir</button>
-                        <button className="px-2 py-0.5 text-[10px] rounded hover:bg-surface-100 border border-surface-100 transition-colors">Télécharger</button>
+                      <div className="flex gap-1 flex-wrap">
+
+                        <button
+                          onClick={() => handleView(d)}
+                          className="px-2 py-0.5 text-[10px] rounded hover:bg-brand-50 hover:text-brand-600 border border-surface-100 transition-colors"
+                        >
+                          Voir
+                        </button>
+                        <button
+                          onClick={() => handleDelete(d.id)}
+                          className="px-2 py-0.5 text-[10px] rounded hover:bg-red-50 hover:text-red-600 border border-surface-100 transition-colors"
+                        >
+                          Supprimer
+                        </button>
+
                       </div>
                     </td>
                   </tr>
@@ -250,21 +381,61 @@ function TabDocuments({ client }) {
             </table>
           )}
         </div>
+
+        {/* UPLOAD — même structure que TabPhoto */}
         <div className="w-56 shrink-0 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-surface-800/40 mb-3">Nouveau document</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-surface-800/40 mb-3">
+            Nouveau document
+          </p>
+
           <div className="space-y-2.5">
+
             <div>
-              <label className="text-[10px] font-semibold text-surface-800/50 block mb-1">Intitulé fichier</label>
-              <input className="input text-xs py-1"/>
+              <label className="text-[10px] font-semibold text-surface-800/50 block mb-1">
+                Intitulé fichier
+              </label>
+              <input
+                className="input text-xs py-1"
+                value={intitule}
+                onChange={e => setIntitule(e.target.value)}
+              />
             </div>
+
             <div>
-              <label className="text-[10px] font-semibold text-surface-800/50 block mb-1">Fichier</label>
+              <label className="text-[10px] font-semibold text-surface-800/50 block mb-1">
+                Fichier
+              </label>
               <label className="flex items-center gap-1.5 px-3 py-2 border-2 border-dashed border-surface-200 rounded-xl cursor-pointer hover:border-brand-300 hover:bg-brand-50 transition-colors">
-                <span className="text-[11px] text-surface-800/50">Parcourir un fichier</span>
-                <input type="file" className="hidden"/>
+                <span className="text-[11px] text-surface-800/50 truncate">
+                  {preview ?? 'Parcourir un fichier'}
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files[0]
+                    if (!f) return
+                    setFile(f)
+                    setPreview(f.name) // ← affiche le nom comme TabPhoto affiche l'aperçu
+                  }}
+                />
               </label>
             </div>
-            <button className="btn-primary w-full py-1.5 text-xs justify-center">Enregistrer</button>
+
+            <button
+              onClick={handleUpload}
+              disabled={loading || !file || !intitule}
+              className="btn-primary w-full py-1.5 text-xs justify-center disabled:opacity-50"
+            >
+              {loading
+                ? <span className="flex items-center gap-1.5 justify-center">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                    Upload…
+                  </span>
+                : 'Enregistrer'
+              }
+            </button>
+
           </div>
         </div>
       </div>
@@ -389,7 +560,7 @@ function TabEcheances({ client, type }) {
                   <th className="th text-[10px]" colSpan={6}>Montant</th>
                 </tr>
                 <tr>
-                  {['Prêt','N°','Groupe','Client','Jour retard','Date échéance','Échéances','Réglé','Restant','Principal','Intérêt','Frais'].map(h=>
+                  {['Prêt','N°','Client','Jour retard','Date échéance','Échéances','Réglé','Restant','Principal','Intérêt','Frais'].map(h=>
                     <th key={h} className="th text-[10px] py-1 text-center">{h}</th>
                   )}
                 </tr>
@@ -399,7 +570,6 @@ function TabEcheances({ client, type }) {
                   <tr key={e.id} className={`table-row ${(e.jours_retard??0)>0?'bg-red-50/40':''}`}>
                     <td className="td py-1 font-mono text-[10px] text-brand-700">{e.pretRef}</td>
                     <td className="td py-1 text-center text-[10px]">{e.numero_echeance}</td>
-                    <td className="td py-1 text-center text-[10px] text-surface-800/30">—</td>
                     <td className="td py-1 text-[10px]">{e.clientLabel}</td>
                     <td className="td py-1 text-center">
                       {(e.jours_retard??0)>0
@@ -492,10 +662,7 @@ function TabSimulation() {
             <label className="label">Jour mois</label>
             <input className="input text-xs py-1.5" type="number" min="1" max="31" value={p.jour} onChange={set('jour')} placeholder="Ex: 1"/>
           </div>
-          <div>
-            <label className="label">Jour semaine</label>
-            <select className="input text-xs py-1.5"><option>Tous (…)</option></select>
-          </div>
+          
           <div className="flex items-end">
             <button className="btn-primary w-full py-1.5 text-xs justify-center" onClick={simuler} disabled={loading}>
               {loading ? 'Calcul…' : 'Lancer la simulation'}
@@ -554,7 +721,7 @@ function TabSimulation() {
 function Client360Panel({ clientId }) {
   const [activeTab, setActiveTab] = useState('vision360')
   const fetcher = useCallback(() => clientsApi.get(clientId), [clientId])
-  const { data: client, loading, error } = useApi(fetcher, [clientId])
+  const { data: client, loading, error,execute: refreshClient } = useApi(fetcher, [clientId])
   const { user } = useAuth();
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-48 gap-2">
@@ -619,11 +786,10 @@ function Client360Panel({ clientId }) {
       <div className="flex-1 overflow-y-auto p-4 bg-surface-50/50">
         {activeTab==='vision360'    && <TabVision360    client={client}/>}
         {activeTab==='signaletique' && <TabSignaletique client={client}/>}
-        {activeTab==='documents'    && <TabDocuments    client={client}/>}
+        {activeTab==='documents'    && <TabDocuments    client={client}   refreshClient={refreshClient}/>}
         {activeTab==='portefeuille' && <TabPortefeuille client={client}/>}
         {activeTab==='echeances'    && <TabEcheances    client={client} type="venir"/>}
         {activeTab==='retard'       && <TabEcheances    client={client} type="retard"/>}
-        {activeTab==='impayes'      && <TabEcheances    client={client} type="impayes"/>}
         {activeTab==='simulation'   && <TabSimulation/>}
       </div>
     </div>

@@ -5,7 +5,6 @@ use App\Http\Controllers\api\AuthController;
 use App\Http\Controllers\api\PersonneController;
 use App\Http\Controllers\api\EmployeController;
 use App\Http\Controllers\api\ClientController;
-use App\Http\Controllers\api\CompteController;
 use App\Http\Controllers\api\ProduitCreditController;
 use App\Http\Controllers\api\FraisController;
 use App\Http\Controllers\api\DemandeCreditController;
@@ -56,7 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Clients ──────────────────────────────────────────────────
     // Routes statiques AVANT {client} pour éviter les conflits
     Route::get('clients/options', [ClientController::class, 'options']);
+    Route::get('/clients/{client}/documents', [ClientController::class, 'documents']);
 
+    Route::post('/clients/{client}/documents', [ClientController::class, 'ajouterDocument']);
+    
+    Route::delete('/clients/{client}/documents/{document}', [ClientController::class, 'supprimerDocument']);
     // Sous-ressources par client
     Route::prefix('clients/{client}')->group(function () {
 
@@ -64,8 +67,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('portefeuille',      [ClientController::class, 'portefeuille']);
         Route::get('historique-prets',  [ClientController::class, 'historiquePrets']);
         Route::get('prets',             [ClientController::class, 'prets']);
-        Route::get('comptes',           [ClientController::class, 'comptes']);
-        Route::get('alertes',           [ClientController::class, 'alertes']);
         Route::get('blacklist',         [ClientController::class, 'blacklist']);
 
         // Actions métier
@@ -87,13 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRUD clients (après les routes custom)
     Route::apiResource('clients', ClientController::class);
 
-    // ── Comptes ──────────────────────────────────────────────────
-    Route::prefix('comptes/{compte}')->group(function () {
-        Route::post('debiter',   [CompteController::class, 'debiter']);
-        Route::post('crediter',  [CompteController::class, 'crediter']);
-    });
-    Route::apiResource('comptes', CompteController::class);
-
+   
     // ── Produits Crédit ──────────────────────────────────────────
     // Route statique AVANT {produitCredit}
     Route::get('produit-credits/options', [ProduitCreditController::class, 'options']);

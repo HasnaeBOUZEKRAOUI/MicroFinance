@@ -84,10 +84,7 @@ class Client extends Model
         return $this->belongsTo(Employe::class);
     }
 
-    public function comptes(): HasMany
-    {
-        return $this->hasMany(Compte::class);
-    }
+   
 
     public function demandeCredits(): HasMany
     {

@@ -143,7 +143,7 @@ function DemandeForm({ onSave, loading, error, initialData }) {
 
   const clientOptions = Array.isArray(clientData) ? clientData : (clientData?.data ?? [])
   const produitOptions = Array.isArray(produitData) ? produitData : (produitData?.data ?? [])
-
+  console.log("PRODUITS:", produitData)
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
   const handleSubmit = (e) => {

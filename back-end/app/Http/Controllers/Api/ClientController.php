@@ -14,6 +14,7 @@ use App\Models\Personne;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+
 class ClientController extends Controller
 {
     // ═══════════════════════════════════════════════════════════
@@ -21,32 +22,40 @@ class ClientController extends Controller
     // ═══════════════════════════════════════════════════════════
 
     public function index(Request $request): JsonResponse
-    {
-        $query = Client::with(['personne', 'employe']);
+{
+    $employeId = auth()->user()->id;
 
-        if ($request->filled('sur_liste_noire')) {
-            $query->where('est_sur_liste_noire', filter_var($request->sur_liste_noire, FILTER_VALIDATE_BOOLEAN));
-        }
-        if ($request->filled('employe_id'))   $query->where('employe_id', $request->employe_id);
-        if ($request->filled('secteur'))       $query->where('secteur_activite', $request->secteur);
-        if ($request->filled('est_vip'))       $query->where('est_vip', filter_var($request->est_vip, FILTER_VALIDATE_BOOLEAN));
-
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $query->where(fn($q) =>
-                $q->where('nil', 'like', "%{$s}%")
-                  ->orWhere('code_client', 'like', "%{$s}%")
-                  ->orWhere('numero_piece_identite', 'like', "%{$s}%")
-                  ->orWhereHas('personne', fn($p) =>
-                      $p->where('nom', 'like', "%{$s}%")
-                        ->orWhere('prenom', 'like', "%{$s}%")
-                        ->orWhere('email', 'like', "%{$s}%")
-                  )
-            );
-        }
-
-        return response()->json($query->paginate(20));
+    $query = Client::with(['personne', 'employe'])
+        ->where('employe_id', $employeId);
+    if ($request->filled('sur_liste_noire')) {
+        $query->where('est_sur_liste_noire', filter_var($request->sur_liste_noire, FILTER_VALIDATE_BOOLEAN));
     }
+
+    if ($request->filled('secteur')) {
+        $query->where('secteur_activite', $request->secteur);
+    }
+
+    if ($request->filled('est_vip')) {
+        $query->where('est_vip', filter_var($request->est_vip, FILTER_VALIDATE_BOOLEAN));
+    }
+
+    if ($request->filled('search')) {
+        $s = $request->search;
+
+        $query->where(function ($q) use ($s) {
+            $q->where('nil', 'like', "%{$s}%")
+              ->orWhere('code_client', 'like', "%{$s}%")
+              ->orWhere('numero_piece_identite', 'like', "%{$s}%")
+              ->orWhereHas('personne', function ($p) use ($s) {
+                  $p->where('nom', 'like', "%{$s}%")
+                    ->orWhere('prenom', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%");
+              });
+        });
+    }
+
+    return response()->json($query->paginate(30));
+}
     public function store(Request $request): JsonResponse
     {
         // 1. On ajoute la validation des champs appartenant à la table "personnes"
@@ -134,8 +143,8 @@ class ClientController extends Controller
     public function show(Client $client): JsonResponse
     {
         $client->load([
-            'personne', 'employe', 'comptes',
-            'demandeCredits', 'liens.clientLie.personne',
+            'personne', 'employe',
+            'demandeCredits',
             'documents.ajoutePar.personne',
         ]);
         return response()->json($client);
@@ -188,82 +197,40 @@ class ClientController extends Controller
         return response()->json(['message' => 'Client supprimé avec succès.']);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // PIN / Vérification NIL
-    // ═══════════════════════════════════════════════════════════
-
-    /** Génère et envoie un code PIN au client (simulation SMS) */
-    public function genererPin(Client $client): JsonResponse
-    {
-        $pin = $client->genererPin();
-        // TODO: intégrer ici l'envoi SMS réel (ex: Twilio, OrangeSMS…)
-        return response()->json([
-            'message'        => 'Code PIN généré et envoyé par SMS.',
-            'pin_debug'      => config('app.debug') ? $pin : null, // visible seulement en dev
-        ]);
-    }
-
-    /** Le client communique son PIN à l'agent pour vérification */
-    public function verifierPin(Request $request, Client $client): JsonResponse
-    {
-        $request->validate(['code_pin' => 'required|string']);
-
-        if ($client->verifierPin($request->code_pin)) {
-            return response()->json(['verifie' => true, 'message' => 'PIN vérifié avec succès.']);
-        }
-        return response()->json(['verifie' => false, 'message' => 'Code PIN incorrect.'], 422);
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // Liens (onglet "Lien")
-    // ═══════════════════════════════════════════════════════════
-
-    public function liens(Client $client): JsonResponse
-    {
-        return response()->json($client->liens()->with('clientLie.personne')->get());
-    }
-
-    public function ajouterLien(Request $request, Client $client): JsonResponse
-    {
-        $validated = $request->validate([
-            'client_lie_id'       => 'nullable|exists:clients,id',
-            'type_lien'           => 'required|in:AMI,FAMILLE,GARANT,MANDATAIRE,CONTACT_URGENCE,CONJOINT,AUTRE',
-            'nom'                 => 'nullable|string|max:100',
-            'prenom'              => 'nullable|string|max:100',
-            'date_naissance'      => 'nullable|date',
-            'cin'                 => 'nullable|string|max:50',
-            'date_expiration_cin' => 'nullable|date',
-            'pays_naissance'      => 'nullable|string|max:100',
-            'ville_naissance'     => 'nullable|string|max:100',
-            'gsm'                 => 'nullable|string|max:20',
-            'adresse'             => 'nullable|string',
-            'ayant_droit'         => 'nullable|boolean',
-        ]);
-
-        if (empty($validated['client_lie_id']) && empty($validated['nom'])) {
-            return response()->json(['message' => 'Fournissez un client existant ou les informations du nouveau lien.'], 422);
-        }
-
-        $lien = $client->liens()->create($validated);
-        return response()->json($lien->load('clientLie.personne'), 201);
-    }
-
-    public function supprimerLien(Client $client, ClientLien $lien): JsonResponse
-    {
-        abort_if($lien->client_id !== $client->id, 403);
-        $lien->delete();
-        return response()->json(['message' => 'Lien supprimé.']);
-    }
-
+ 
+   
     // ═══════════════════════════════════════════════════════════
     // GED Documents (onglet "GED")
     // ═══════════════════════════════════════════════════════════
-
     public function documents(Client $client): JsonResponse
     {
-        return response()->json($client->documents()->with('ajoutePar.personne')->get());
+        return response()->json(
+    
+            $client->documents()
+                ->with('ajoutePar.personne')
+                ->get()
+                ->map(function ($doc) {
+    
+                    return [
+    
+                        'id' => $doc->id,
+    
+                        'intitule' => $doc->intitule,
+    
+                        'chemin_fichier' => $doc->chemin_fichier,
+    
+                        'url' => Storage::url($doc->chemin_fichier),
+    
+                        'type_mime' => $doc->type_mime,
+    
+                        'taille_octets' => $doc->taille_octets,
+    
+                        'taille_listible' =>
+                            round($doc->taille_octets / 1024, 2) . ' KB',
+                    ];
+                })
+        );
     }
-
     public function ajouterDocument(Request $request, Client $client): JsonResponse
     {
         $validated = $request->validate([
@@ -272,7 +239,7 @@ class ClientController extends Controller
             'ajoute_par' => 'nullable|exists:employes,id',
         ]);
 
-        $chemin   = $request->file('fichier')->store("clients/{$client->id}/documents", 'local');
+        $chemin   = $request->file('fichier')->store("clients/{$client->id}/documents", 'public');
         $document = $client->documents()->create([
             'intitule'      => $validated['intitule'],
             'chemin_fichier'=> $chemin,
@@ -281,13 +248,27 @@ class ClientController extends Controller
             'ajoute_par'    => $validated['ajoute_par'] ?? null,
         ]);
 
-        return response()->json($document, 201);
+        return response()->json(
+            $client->documents()
+                ->with('ajoutePar.personne')
+                ->get()
+                ->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'intitule' => $doc->intitule,
+                        'chemin_fichier' => $doc->chemin_fichier,
+                        'url' => Storage::url($doc->chemin_fichier),
+                        'type_mime' => $doc->type_mime,
+                        'taille_octets' => $doc->taille_octets,
+                    ];
+                })
+        );
     }
 
     public function supprimerDocument(Client $client, ClientDocument $document): JsonResponse
     {
         abort_if($document->client_id !== $client->id, 403);
-        Storage::disk('local')->delete($document->chemin_fichier);
+        Storage::disk('public')->delete($document->chemin_fichier);
         $document->delete();
         return response()->json(['message' => 'Document supprimé.']);
     }
@@ -309,10 +290,7 @@ class ClientController extends Controller
         ]);
     }
 
-    public function comptes(Client $client): JsonResponse
-    {
-        return response()->json($client->comptes()->get());
-    }
+    
 
     // Upload photos CIN / portrait
     public function uploadPhoto(Request $request, Client $client): JsonResponse
@@ -335,23 +313,26 @@ class ClientController extends Controller
 
         return response()->json(['message' => 'Fichier uploadé.', 'chemin' => $chemin]);
     }
-public function options(): JsonResponse
-{
-    // On récupère l'id du client et son identité associée
-    $clients = Client::with('personne:id,nom,prenom')
-        ->select('id', 'code_client', 'nil')
-        ->get()
-        ->map(function ($client) {
-            return [
-                'id' => $client->id,
-                'label' => ($client->personne 
-                    ? "{$client->personne->prenom} {$client->personne->nom}" 
-                    : "Client #{$client->id}") . " (" . ($client->code_client ?? $client->nil) . ")"
-            ];
-        });
-
-    return response()->json($clients);
-}
+    public function options(): JsonResponse
+    {
+        $employeId = auth()->user()->id;
+    
+        $clients = Client::with('personne:id,nom,prenom')
+            ->select('id', 'code_client', 'nil', 'employe_id')
+            ->where('employe_id', $employeId) // 🔥 FILTRE IMPORTANT
+            ->get()
+            ->map(function ($client) {
+                return [
+                    'id' => $client->id,
+                    'label' => ($client->personne
+                        ? "{$client->personne->prenom} {$client->personne->nom}"
+                        : "Client #{$client->id}"
+                    ) . " (" . ($client->code_client ?? $client->nil) . ")"
+                ];
+            });
+    
+        return response()->json($clients);
+    }
 public function portefeuille(Request $request, $id)
 {
     try {

@@ -144,7 +144,6 @@ class ProduitCreditController extends Controller
                 'label' => "{$p->type_produit}-{$p->famille_produit} (Min: {$p->montant_min}, Max: {$p->montant_max})", 
             ];
         });
-
     return response()->json($produits);
 }
 }

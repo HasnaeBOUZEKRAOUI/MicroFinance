@@ -5,137 +5,262 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use App\Models\Client;
-use App\Models\DemandeCredit;
-use App\Models\Pret;
 use Illuminate\Support\Facades\DB;
 
 class Vision360Controller extends Controller
 {
-    public function getClientProfile(Request $request): JsonResponse
+    // =========================================================
+    // LISTE / SEARCH / DASHBOARD
+    // =========================================================
+
+    public function index(Request $request): JsonResponse
+    {
+        return $this->getClientProfile($request);
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        return $this->getClientProfile($request);
+    }
+
+    // =========================================================
+    // SHOW CLIENT (SECURISÉ PAR AGENT)
+    // =========================================================
+
+    public function show(Request $request, $id): JsonResponse
+    {
+        $employeId = auth()->id();
+
+        $client = DB::table('clients')
+            ->join('personnes', 'clients.personne_id', '=', 'personnes.id')
+            ->where('clients.id', $id)
+            ->where('clients.employe_id', $employeId) // 🔒 sécurité agent
+            ->select(
+                'clients.id',
+                'clients.nil',
+                'clients.code_client',
+                'clients.est_vip',
+                'clients.score_eligibilite',
+                'clients.revenu_mensuel',
+                'clients.est_sur_liste_noire',
+                'personnes.nom',
+                'personnes.prenom',
+                'personnes.telephone',
+                'personnes.email'
+            )
+            ->first();
+
+        if (!$client) {
+            return response()->json(['message' => 'Client introuvable.'], 404);
+        }
+
+        return response()->json([
+            'infoClient'  => $client,
+            'demandes'    => $this->getDemandes($client->id),
+            'pretsActifs' => $this->getPretsActifs($client->id),
+            'echeances'   => $this->getEcheances($client->id),
+        ]);
+    }
+
+    // =========================================================
+    // CORE PROFILE LOGIC
+    // =========================================================
+
+    private function getClientProfile(Request $request): JsonResponse
     {
         try {
-            // Détection de la présence de filtres de recherche
-            $hasFilters = $request->filled('nil') || $request->filled('nom') || $request->filled('prenom');
+            $employeId = auth()->id();
 
+            $hasFilters =
+                $request->filled('nil') ||
+                $request->filled('nom') ||
+                $request->filled('prenom') ||
+                $request->filled('search');
+
+            // =====================================================
+            // MODE FILTRE / SEARCH
+            // =====================================================
             if ($hasFilters) {
-                // ── 1. MODE FILTRÉ : Recherche d'un client spécifique ──
-                $query = Client::join('personnes', 'clients.personne_id', '=', 'personnes.id');
+
+                $query = DB::table('clients')
+                    ->join('personnes', 'clients.personne_id', '=', 'personnes.id')
+                    ->where('clients.employe_id', $employeId); // 🔒 filtre agent
 
                 if ($request->filled('nil')) {
                     $query->where('clients.nil', $request->nil);
                 }
+
                 if ($request->filled('nom')) {
                     $query->where('personnes.nom', 'like', '%' . $request->nom . '%');
                 }
+
                 if ($request->filled('prenom')) {
                     $query->where('personnes.prenom', 'like', '%' . $request->prenom . '%');
                 }
 
-                $client = $query->select('clients.id', 'clients.nil', 'personnes.nom', 'personnes.prenom', 'personnes.telephone')->first();
+                if ($request->filled('search')) {
+                    $s = $request->search;
 
-                // Si aucun client ne correspond aux critères saisis
+                    $query->where(function ($q) use ($s) {
+                        $q->where('clients.nil', 'like', "%{$s}%")
+                          ->orWhere('clients.code_client', 'like', "%{$s}%")
+                          ->orWhere('personnes.nom', 'like', "%{$s}%")
+                          ->orWhere('personnes.prenom', 'like', "%{$s}%");
+                    });
+                }
+
+                $client = $query->select(
+                    'clients.id',
+                    'clients.nil',
+                    'clients.code_client',
+                    'clients.est_vip',
+                    'clients.score_eligibilite',
+                    'clients.revenu_mensuel',
+                    'clients.est_sur_liste_noire',
+                    'personnes.nom',
+                    'personnes.prenom',
+                    'personnes.telephone',
+                    'personnes.email'
+                )->first();
+
                 if (!$client) {
                     return response()->json($this->emptyResponse());
                 }
 
-                // Récupération des comptes du client (avec vos vraies colonnes)
-                $comptes = DB::table('comptes')
-                    ->where('client_id', $client->id)
-                    ->get(['type_compte', 'numero_compte as code', 'solde_actuel as solde']);
-
-                // Récupération des demandes de crédit
-                $demandes = DB::table('demande_credits')
-                    ->where('client_id', $client->id)
-                    ->orderBy('created_at', 'desc')
-                    ->get(['id', 'date_soumission as date_demande', 'statut_demande as statut', 'montant_demande as montant']);
-
-                // Récupération des prêts actifs (en passant par la jointure demande_credits)
-                $pretsActifs = DB::table('prets')
-                    ->join('demande_credits', 'prets.demande_credit_id', '=', 'demande_credits.id')
-                    ->where('demande_credits.client_id', $client->id)
-                    ->where('prets.statut_pret', 'EN_COURS')
-                    ->get(['prets.id as code', 'prets.date_debut as date_octroi', 'prets.montant_accorde', 'prets.capital_restant as montant_restant']);
-
-                // Récupération des échéances en retard
-                $echeances = DB::table('echeances')
-                    ->join('prets', 'echeances.pret_id', '=', 'prets.id')
-                    ->join('demande_credits', 'prets.demande_credit_id', '=', 'demande_credits.id')
-                    ->where('demande_credits.client_id', $client->id)
-                    ->whereIn('echeances.statut', ['EN_RETARD', 'EN_ATTENTE', 'PARTIELLEMENT_PAYEE'])
-                    ->where('echeances.date_echeance', '<', now())
-                    ->get([
-                        'prets.reference as pret_code',
-                        'echeances.date_echeance',
-                        DB::raw('DATEDIFF(NOW(), echeances.date_echeance) as jours_retard'),
-                        DB::raw('(echeances.total_du - echeances.montant_paye) as montant')
-                    ]);
-
                 return response()->json([
                     'infoClient'  => $client,
-                    'comptes'     => $comptes,
-                    'demandes'    => $demandes,
-                    'pretsActifs' => $pretsActifs,
-                    'echeances'   => $echeances
-                ], 200);
-
-            } else {
-                // ── 2. MODE PAR DÉFAUT : Remplissage global initial depuis la DB ──
-                
-                $comptes = DB::table('comptes')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(25)
-                    ->get(['type_compte', 'numero_compte as code', 'solde_actuel as solde']);
-
-                $demandes = DB::table('demande_credits')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(25)
-                    ->get(['id', 'date_soumission as date_demande', 'statut_demande as statut', 'montant_demande as montant']);
-
-                $pretsActifs = DB::table('prets')
-                    ->where('statut_pret', 'EN_COURS')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(25)
-                    ->get(['id as code', 'date_debut as date_octroi', 'montant_accorde', 'capital_restant as montant_restant']);
-
-                $echeances = DB::table('echeances')
-                    ->join('prets', 'echeances.pret_id', '=', 'prets.id')
-                    ->whereIn('echeances.statut', ['EN_RETARD', 'EN_ATTENTE', 'PARTIELLEMENT_PAYEE'])
-                    ->where('echeances.date_echeance', '<', now())
-                    ->orderBy('echeances.date_echeance', 'asc')
-                    ->limit(25)
-                    ->get([
-                        'prets.reference as pret_code',
-                        'echeances.date_echeance',
-                        'echeances.jours_retard',
-                        DB::raw('(echeances.total_du - echeances.montant_paye) as montant')
-                    ]);
-
-                return response()->json([
-                    'infoClient'  => null, // Aucun en-tête client particulier en mode global
-                    'comptes'     => $comptes,
-                    'demandes'    => $demandes,
-                    'pretsActifs' => $pretsActifs,
-                    'echeances'   => $echeances
-                ], 200);
+                    'demandes'    => $this->getDemandes($client->id),
+                    'pretsActifs' => $this->getPretsActifs($client->id),
+                    'echeances'   => $this->getEcheances($client->id),
+                ]);
             }
+
+            // =====================================================
+            // MODE GLOBAL (DASHBOARD AGENT)
+            // =====================================================
+            return response()->json([
+                'infoClient'  => null,
+                'demandes'    => $this->getDemandes(null, 25),
+                'pretsActifs' => $this->getPretsActifs(null, 25),
+                'echeances'   => $this->getEcheances(null, 25),
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erreur lors de la récupération du profil 360.',
-                'error' => $e->getMessage()
+                'message' => 'Erreur Vision360',
+                'error'   => $e->getMessage(),
+                'line'    => $e->getLine(),
             ], 500);
         }
     }
+
+    // =========================================================
+    // DEMANDES
+    // =========================================================
+
+    private function getDemandes(?int $clientId, int $limit = 100): array
+    {
+        $query = DB::table('demande_credits')
+            ->select(
+                'id',
+                'date_soumission as date_demande',
+                'statut_demande as statut',
+                'montant_demande as montant',
+                'objet_pret',
+                'duree_demandee'
+            );
+
+        if ($clientId) {
+            $query->where('client_id', $clientId)
+                  ->orderBy('date_soumission', 'desc');
+        } else {
+            $query->orderBy('date_soumission', 'desc')
+                  ->limit($limit);
+        }
+
+        return $query->get()->toArray();
+    }
+
+    // =========================================================
+    // PRETS
+    // =========================================================
+
+    private function getPretsActifs(?int $clientId, int $limit = 100): array
+    {
+        $query = DB::table('prets')
+            ->leftJoin('demande_credits', 'prets.demande_credit_id', '=', 'demande_credits.id')
+            ->select(
+                'prets.id',
+                'prets.reference as code',
+                'prets.date_debut as date_octroi',
+                'prets.date_fin',
+                'prets.montant_accorde',
+                'prets.capital_restant as montant_restant',
+                'prets.taux_interet',
+                'prets.statut_pret as statut',
+                'demande_credits.client_id'
+            );
+
+        if ($clientId) {
+            $query->where('demande_credits.client_id', $clientId)
+                  ->whereIn('prets.statut_pret', ['EN_COURS', 'EN_RETARD', 'EN_CONTENTIEUX'])
+                  ->orderBy('prets.date_debut', 'desc');
+        } else {
+            $query->whereIn('prets.statut_pret', ['EN_COURS', 'EN_RETARD'])
+                  ->orderBy('prets.date_debut', 'desc')
+                  ->limit($limit);
+        }
+
+        return $query->get()->toArray();
+    }
+
+    // =========================================================
+    // ECHEANCES
+    // =========================================================
+
+    private function getEcheances(?int $clientId, int $limit = 100): array
+    {
+        $query = DB::table('echeances')
+            ->join('prets', 'echeances.pret_id', '=', 'prets.id')
+            ->leftJoin('demande_credits', 'prets.demande_credit_id', '=', 'demande_credits.id')
+            ->select(
+                'echeances.id',
+                'prets.reference as pret_code',
+                'echeances.numero_echeance',
+                'echeances.date_echeance',
+                'echeances.total_du',
+                'echeances.montant_paye',
+                'echeances.jours_retard',
+                'echeances.penalites',
+                'echeances.statut',
+                DB::raw('(echeances.total_du - echeances.montant_paye) as montant_restant'),
+                DB::raw('DATEDIFF(NOW(), echeances.date_echeance) as jours_retard_reel')
+            );
+
+        if ($clientId) {
+            $query->where('demande_credits.client_id', $clientId)
+                  ->orderBy('echeances.date_echeance', 'asc');
+        } else {
+            $query->whereIn('echeances.statut', ['EN_RETARD', 'EN_ATTENTE', 'PARTIELLEMENT_PAYEE'])
+                  ->where('echeances.date_echeance', '<', now())
+                  ->orderBy('echeances.date_echeance', 'asc')
+                  ->limit($limit);
+        }
+
+        return $query->get()->toArray();
+    }
+
+    // =========================================================
+    // EMPTY RESPONSE
+    // =========================================================
 
     private function emptyResponse(): array
     {
         return [
             'infoClient'  => null,
-            'comptes'     => [],
             'demandes'    => [],
             'pretsActifs' => [],
-            'echeances'   => []
+            'echeances'   => [],
         ];
     }
 }

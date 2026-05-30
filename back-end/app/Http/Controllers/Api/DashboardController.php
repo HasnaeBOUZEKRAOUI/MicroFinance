@@ -32,7 +32,6 @@ class DashboardController extends Controller
                         'mode_paiement' => 'CASH'
                     ]
                 ], 
-                'alertes_recentes'   => []
             ], 200);
 
         } catch (\Exception $e) {

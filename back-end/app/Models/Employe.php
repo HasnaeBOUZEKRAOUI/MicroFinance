@@ -16,6 +16,7 @@ class Employe extends Authenticatable
     use HasApiTokens, Notifiable, SoftDeletes, HasFactory;
 
     protected $fillable = [
+        
         'personne_id',
         'superviseur_id',
         'nom_utilisateur',
@@ -83,12 +84,6 @@ class Employe extends Authenticatable
     }
 
     /** Alertes acquittées par cet employé */
-    public function alertesAcquittees(): HasMany
-    {
-        return $this->hasMany(Alerte::class, 'acquittee_par');
-    }
-
-    // -------------------------------------------------------------------------
     // Accesseurs délégués vers Personne
     // -------------------------------------------------------------------------
 

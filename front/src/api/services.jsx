@@ -5,15 +5,33 @@ export const dashboardApi = {
 }
 // ── Clients ──────────────────────────────────────
 export const clientsApi = {
-  list:    (params) => api.get('/clients', { params }),
-  get:     (id)     => api.get(`/clients/${id}`),
-  create:  (data)   => api.post('/clients', data),
-  update:  (id, d)  => api.put(`/clients/${id}`, d),
-  delete:  (id)     => api.delete(`/clients/${id}`),
-  prets:   (id)     => api.get(`/clients/${id}/historique-prets`),
-  blacklist:(id)    => api.get(`/clients/${id}/blacklist`),
-  options: () => api.get('/clients/options'),
-  portefeuille: (id, config = {}) => api.get(`/clients/${id}/portefeuille`, config),}
+  list:     (params) => api.get('/clients', { params }),
+  get:      (id)     => api.get(`/clients/${id}`),
+  create:   (data)   => api.post('/clients', data),
+  update:   (id, d)  => api.put(`/clients/${id}`, d),
+  delete:   (id)     => api.delete(`/clients/${id}`),
+
+  blacklist:    (id) => api.get(`/clients/${id}/blacklist`),
+  options:      ()   => api.get('/clients/options'),
+  portefeuille: (id, config = {}) => api.get(`/clients/${id}/portefeuille`, config),
+  vision360:    (id) => api.get(`/vision360/${id}`),
+  prets:        (id) => api.get(`/clients/${id}/historique-prets`),
+
+  // GED
+  documents: (id) =>
+    api.get(`/clients/${id}/documents`),
+
+  uploadDocument: (id, data) =>
+    api.post(`/clients/${id}/documents`, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+
+  deleteDocument: (clientId, documentId) =>
+    api.delete(`/clients/${clientId}/documents/${documentId}`),
+}
+ 
 
 // ── Employés ─────────────────────────────────────
 export const employesApi = {
@@ -76,8 +94,13 @@ export const produitsApi = {
 
 }
 export const vision360Api = {
-  getProfile: (searchTerm) => api.get('/vision360/client', { params: { search: searchTerm } }),
+  search: (searchTerm) =>
+    api.get('/vision360/search', {
+      params: { search: searchTerm }
+    }),
 
+  getById: (id) =>
+    api.get(`/vision360/${id}`)
 }
 
 // ── Statistiques Caisse ───────────────────────────────────────────────────

@@ -19,10 +19,7 @@ return new class extends Migration
             $table->enum('statut_pret', [
                 'EN_COURS',
                 'SOLDE',
-                'EN_RETARD',
-                'EN_CONTENTIEUX',
-                'RESTRUCTURE',
-                'ABANDONNE'
+                'EN_RETARD'
             ])->default('EN_COURS');
             $table->integer('periode_grace')->default(0)->comment('Période de grâce en mois');
             $table->decimal('capital_restant', 15, 2)->nullable()->comment('Capital restant dû');

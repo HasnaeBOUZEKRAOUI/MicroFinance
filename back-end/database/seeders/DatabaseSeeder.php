@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Database\Seeders\MouvementCaisseSeeder;
 use App\Models\{
-    Personne, Employe, Client, Compte,
+    Personne, Employe, Client, 
     ProduitCredit, Frais, DemandeCredit,
     Pret, Echeance, Paiement,
     Garant, ClientDocument, MouvementCaisse
@@ -69,11 +69,7 @@ class DatabaseSeeder extends Seeder
 
         $tousClients = Client::all();
 
-        $tousClients->each(function ($client) {
-            Compte::factory()->count(rand(1, 2))->actif()->create([
-                'client_id' => $client->id,
-            ]);
-        });
+       
 
         $tousClients->each(function ($client) use ($tousEmployes) {
             ClientDocument::factory()->count(rand(2, 5))->create([
@@ -202,7 +198,6 @@ class DatabaseSeeder extends Seeder
             [
                 ['Employés',          Employe::count()],
                 ['Clients',           Client::count()],
-                ['Comptes',           Compte::count()],
                 ['Produits crédit',   ProduitCredit::count()],
                 ['Demandes crédit',   DemandeCredit::count()],
                 ['Prêts',             Pret::count()],
