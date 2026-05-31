@@ -117,3 +117,10 @@ export const profileApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 }
+export const assistantApi = {
+  analyser: (demandeId) =>
+    api.post(`/assistant/analyser/${demandeId}`),
+
+  chat: (demandeId, payload) =>
+    api.post(`/assistant/chat/${demandeId}`, payload),
+}

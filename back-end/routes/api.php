@@ -15,6 +15,8 @@ use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\Vision360Controller;
 use App\Http\Controllers\api\StatistiquesController;
 use App\Http\Controllers\api\ProfileController;
+use App\Http\Controllers\Api\AssistantController;
+
 
 // ════════════════════════════════════════════════════════════════
 //  1. ROUTES PUBLIQUES
@@ -158,4 +160,33 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [ProduitCreditController::class, 'destroy']);
         });
     });
+    Route::prefix('assistant')->group(function () {
+        Route::post('analyser/{demandeId}', [AssistantController::class, 'analyser']);
+        Route::post('chat/{demandeId}',     [AssistantController::class, 'chat']);
+    });
+});
+// Fix la route de test pour OpenRouter
+// Route de test
+Route::get('/test-gemini', function () {
+    $apiKey = config('services.gemini.key');
+
+    $response = \Illuminate\Support\Facades\Http::withOptions([
+        'verify' => false, 'timeout' => 30,
+    ])->withHeaders([
+        'Authorization' => "Bearer {$apiKey}",
+        'Content-Type'  => 'application/json',
+    ])->post('https://openrouter.ai/api/v1/chat/completions', [
+'model' => 'google/gemma-4-31b-it:free',
+        'messages' => [
+            ['role' => 'system', 'content' => 'Tu es un assistant financier. Réponds en français.'],
+            ['role' => 'user',   'content' => 'Dis bonjour en une phrase.'],
+        ],
+        'max_tokens' => 50,
+    ]);
+
+    return response()->json([
+        'ok'      => $response->successful(),
+        'reponse' => $response->json('choices.0.message.content'),
+        'erreur'  => $response->json('error'),
+    ]);
 });

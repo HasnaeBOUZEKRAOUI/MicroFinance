@@ -1,46 +1,50 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Eye, CheckCircle, XCircle, FileText, Clock, ThumbsUp, ThumbsDown,
-  ShieldCheck, Pencil, Trash2, ChevronRight, ChevronDown, 
-  X, Banknote, Shield, ClipboardList, RefreshCw, Search,UserPlus
+  Plus, Eye, CheckCircle, XCircle, ThumbsUp,
+  ShieldCheck, Pencil, Trash2, ChevronRight, ChevronDown,
+  X, Banknote, Shield, ClipboardList, Search, UserPlus,
+  Bot, Send, Sparkles, RefreshCw
 } from 'lucide-react'
 
-import { demandesApi, clientsApi, produitsApi } from '../../api/services'
+import { demandesApi, clientsApi, produitsApi, assistantApi } from '../../api/services'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { formatDate, formatMontant } from '../../utils/helpers'
-import {
-  PageHeader, Modal, Pagination, Empty, ErrorAlert, StatCard, Spinner
-} from '../../components/ui'
+import { PageHeader, Modal, Pagination, Empty, ErrorAlert, Spinner } from '../../components/ui'
 
-// ─── CONFIGURATION WORKFLOW VISUEL ─────────────────────────────────
+// ─── WORKFLOW ──────────────────────────────────────────────────
 const WORKFLOW = {
-  EN_ATTENTE:       { label: 'Instance',        color: 'bg-amber-100 text-amber-800'},
-  EN_COURS_ANALYSE: { label: 'En analyse',      color: 'bg-blue-100 text-blue-800' },
-  APPROUVEE:        { label: 'Approuvée',       color: 'bg-emerald-100 text-emerald-800' },
-  REJETEE:          { label: 'Rejetée',         color: 'bg-red-100 text-red-800'},
-  DECAISSEE:        { label: 'Décaissée',       color: 'bg-purple-100 text-purple-800' },
+  EN_ATTENTE:       { label: 'Instance',   color: 'bg-amber-100 text-amber-800' },
+  EN_COURS_ANALYSE: { label: 'En analyse', color: 'bg-blue-100 text-blue-800' },
+  APPROUVEE:        { label: 'Approuvée',  color: 'bg-emerald-100 text-emerald-800' },
+  REJETEE:          { label: 'Rejetée',    color: 'bg-red-100 text-red-800' },
+  ANNULEE:          { label: 'Annulée',    color: 'bg-surface-100 text-surface-800' },
+  DECAISSEE:        { label: 'Décaissée',  color: 'bg-purple-100 text-purple-800' },
 }
 
-const ETAPES = [
+const ETAPES    = [
   { id: 'EN_ATTENTE',       label: 'En attente' },
   { id: 'EN_COURS_ANALYSE', label: 'Analyse' },
-  { id: 'APPROUVEE',        label: 'Comité'},
+  { id: 'APPROUVEE',        label: 'Comité' },
   { id: 'DECAISSEE',        label: 'Décaissement' },
 ]
 const ETAPE_IDX = { EN_ATTENTE: 0, EN_COURS_ANALYSE: 1, APPROUVEE: 2, DECAISSEE: 3 }
 
+// ─── WorkflowBar ───────────────────────────────────────────────
 function WorkflowBar({ statut }) {
   const cur = ETAPE_IDX[statut] ?? 0
-  const rej = statut === 'REJETEE' 
+  const rej = statut === 'REJETEE' || statut === 'ANNULEE'
   return (
-    <div className="flex items-center gap-0 flex-wrap">
+    <div className="flex items-center flex-wrap gap-0">
       {ETAPES.map((e, i) => (
         <div key={e.id} className="flex items-center">
           <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all
-            ${rej && i === cur ? 'bg-red-100 text-red-700' : i < cur ? 'bg-emerald-100 text-emerald-700' : i === cur && !rej ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-800/40'}`}>
-             {e.label}
+            ${rej && i === cur ? 'bg-red-100 text-red-700'
+              : i < cur        ? 'bg-emerald-100 text-emerald-700'
+              : i === cur      ? 'bg-brand-600 text-white'
+                               : 'bg-surface-100 text-surface-800/40'}`}>
+            {e.label}
           </div>
           {i < 3 && <ChevronRight size={12} className={`mx-0.5 ${i < cur ? 'text-emerald-400' : 'text-surface-200'}`} />}
         </div>
@@ -57,108 +61,84 @@ function WorkflowBar({ statut }) {
   )
 }
 
-// ─── 1. MODALE DÉDIÉE POUR AJOUTER UN GARANT ───────────────────────────────────
+// ─── AjouterGarantModal ────────────────────────────────────────
 function AjouterGarantModal({ open, onClose, onSave, initialGarant }) {
   const [g, setG] = useState({
     nom: '', prenom: '', cin: '', telephone: '', email: '',
     relation_client: 'Famille', revenu_mensuel: '', employeur: '',
-    ...initialGarant
+    ...initialGarant,
   })
-
   const set = k => e => setG(p => ({ ...p, [k]: e.target.value }))
-
-  const handleValid = () => {
-    onSave(g)
-    onClose()
-  }
 
   return (
     <Modal open={open} onClose={onClose} title="Informations détaillées du Garant" size="md">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">Nom *</label><input className="input" value={g.nom} onChange={set('nom')} required /></div>
-          <div><label className="label">Prénom *</label><input className="input" value={g.prenom} onChange={set('prenom')} required /></div>
-          <div><label className="label">N° CIN *</label><input className="input font-mono uppercase" value={g.cin} onChange={set('cin')} required /></div>
-          <div><label className="label">Téléphone *</label><input className="input" value={g.telephone} onChange={set('telephone')} required /></div>
+          <div><label className="label">Nom *</label><input className="input" value={g.nom} onChange={set('nom')} /></div>
+          <div><label className="label">Prénom *</label><input className="input" value={g.prenom} onChange={set('prenom')} /></div>
+          <div><label className="label">N° CIN *</label><input className="input font-mono uppercase" value={g.cin} onChange={set('cin')} /></div>
+          <div><label className="label">Téléphone *</label><input className="input" value={g.telephone} onChange={set('telephone')} /></div>
           <div><label className="label">Email</label><input className="input" type="email" value={g.email} onChange={set('email')} /></div>
           <div>
             <label className="label">Relation avec le client *</label>
             <select className="input" value={g.relation_client} onChange={set('relation_client')}>
-              <option value="Famille">Famille</option>
-              <option value="Ami">Ami</option>
-              <option value="Collègue">Collègue</option>
-              <option value="Professionnelle">Professionnelle</option>
-              <option value="Autre">Autre</option>
+              {['Famille','Ami','Collègue','Professionnelle','Autre'].map(v => <option key={v}>{v}</option>)}
             </select>
           </div>
-          <div><label className="label">Revenu mensuel (MAD) *</label><input className="input" type="number" step="0.01" value={g.revenu_mensuel} onChange={set('revenu_mensuel')} required /></div>
+          <div><label className="label">Revenu mensuel (MAD) *</label><input className="input" type="number" step="0.01" value={g.revenu_mensuel} onChange={set('revenu_mensuel')} /></div>
           <div><label className="label">Employeur / Société</label><input className="input" value={g.employeur} onChange={set('employeur')} /></div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Annuler</button>
-          <button type="button" className="btn-primary" onClick={handleValid}>Valider le garant</button>
+          <button type="button" className="btn-primary" onClick={() => { onSave(g); onClose() }}>Valider le garant</button>
         </div>
       </div>
     </Modal>
   )
 }
 
-// ─── 2. FORMULAIRE PRINCIPAL DE DEMANDE DE CRÉDIT (Création / Édition) ──────────────
+// ─── DemandeForm ───────────────────────────────────────────────
 function DemandeForm({ onSave, loading, error, initialData }) {
   const [f, setF] = useState({
     client_id: '', produit_credit_id: '', montant_demande: '',
     duree_demandee: '', objet_pret: '', garantie: '',
   })
-  const [garant, setGarant] = useState(null)
+  const [garant, setGarant]               = useState(null)
+  const [showGarantModal, setShowGarantModal] = useState(false)
 
   useEffect(() => {
-    if (initialData) {
-      setF({
-        client_id: initialData.client_id ?? '',
-        produit_credit_id: initialData.produit_credit_id ?? '',
-        montant_demande: initialData.montant_demande ?? '',
-        duree_demandee: initialData.duree_demandee ?? '',
-        objet_pret: initialData.objet_pret ?? '',
-        garantie: initialData.garantie ?? '',
-      })
-      if (initialData.garant) {
-        setGarant({
-          nom: initialData.garant.nom ?? '',
-          prenom: initialData.garant.prenom ?? '',
-          cin: initialData.garant.cin ?? '',
-          telephone: initialData.garant.telephone ?? '',
-          revenu_mensuel: initialData.garant.revenu_mensuel ?? '',
-          relation_client: initialData.garant.relation_client ?? '',
-        })
-      } else {
-        setGarant(null)
-      }
-    }
+    if (!initialData) return
+    setF({
+      client_id:          initialData.client_id ?? '',
+      produit_credit_id:  initialData.produit_credit_id ?? '',
+      montant_demande:    initialData.montant_demande ?? '',
+      duree_demandee:     initialData.duree_demandee ?? '',
+      objet_pret:         initialData.objet_pret ?? '',
+      garantie:           initialData.garantie ?? '',
+    })
+    setGarant(initialData.garant ? {
+      nom:              initialData.garant.nom ?? '',
+      prenom:           initialData.garant.prenom ?? '',
+      cin:              initialData.garant.cin ?? '',
+      telephone:        initialData.garant.telephone ?? '',
+      revenu_mensuel:   initialData.garant.revenu_mensuel ?? '',
+      relation_client:  initialData.garant.relation_client ?? '',
+    } : null)
   }, [initialData])
 
-  const [showGarantModal, setShowGarantModal] = useState(false)
-  const { data: clientData, loading: loadingClients } = useApi(clientsApi.options)
+  const { data: clientData,  loading: loadingClients }  = useApi(clientsApi.options)
   const { data: produitData, loading: loadingProduits } = useApi(produitsApi.options)
-
-  const clientOptions = Array.isArray(clientData) ? clientData : (clientData?.data ?? [])
+  const clientOptions  = Array.isArray(clientData)  ? clientData  : (clientData?.data  ?? [])
   const produitOptions = Array.isArray(produitData) ? produitData : (produitData?.data ?? [])
-  console.log("PRODUITS:", produitData)
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSave({ ...f, garant })
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...f, garant }) }} className="space-y-4">
       <ErrorAlert message={error} />
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Client bénéficiaire *</label>
-          {loadingClients ? (
-            <div className="text-xs text-surface-800/50 pt-2 flex items-center gap-2"><Spinner className="w-3 h-3" /> Chargement...</div>
-          ) : (
+          {loadingClients ? <Spinner className="w-3 h-3 mt-2" /> : (
             <select className="input" value={f.client_id} onChange={set('client_id')} required>
               <option value="">-- Choisir un client --</option>
               {clientOptions.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -167,9 +147,7 @@ function DemandeForm({ onSave, loading, error, initialData }) {
         </div>
         <div>
           <label className="label">Produit de crédit *</label>
-          {loadingProduits ? (
-            <div className="text-xs text-surface-800/50 pt-2 flex items-center gap-2"><Spinner className="w-3 h-3" /> Chargement...</div>
-          ) : (
+          {loadingProduits ? <Spinner className="w-3 h-3 mt-2" /> : (
             <select className="input" value={f.produit_credit_id} onChange={set('produit_credit_id')} required>
               <option value="">-- Choisir un produit --</option>
               {produitOptions.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -194,84 +172,246 @@ function DemandeForm({ onSave, loading, error, initialData }) {
         </div>
       </div>
 
-      <div className="p-4 bg-surface-50 rounded-xl border border-surface-100 mt-2 flex items-center justify-between">
+      <div className="p-4 bg-surface-50 rounded-xl border border-surface-100 flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-surface-900">Caution solidaire (Garant personnel)</p>
-          <p className="text-xs text-surface-800/50">{garant ? `Garant : ${garant.prenom} ${garant.nom}` : "Aucun garant rattaché."}</p>
+          <p className="text-xs text-surface-800/50">{garant ? `Garant : ${garant.prenom} ${garant.nom}` : 'Aucun garant rattaché.'}</p>
         </div>
-        <button type="button" onClick={() => setShowGarantModal(true)} className={`btn text-xs px-3 py-1.5 flex items-center gap-1.5 ${garant ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'btn-secondary'}`}>
-          {garant ? <ShieldCheck size={14} /> : <UserPlus size={14} />} {garant ? 'Modifier le garant' : 'Ajouter un garant'}
+        <button type="button" onClick={() => setShowGarantModal(true)}
+          className={`btn text-xs px-3 py-1.5 flex items-center gap-1.5 ${garant ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'btn-secondary'}`}>
+          {garant ? <ShieldCheck size={14} /> : <UserPlus size={14} />}
+          {garant ? 'Modifier le garant' : 'Ajouter un garant'}
         </button>
       </div>
+
       <div className="flex justify-end pt-2">
         <button className="btn-primary" disabled={loading}>{loading ? 'Traitement...' : 'Soumettre la demande'}</button>
       </div>
+
       <AjouterGarantModal open={showGarantModal} onClose={() => setShowGarantModal(false)} onSave={setGarant} initialGarant={garant} />
     </form>
   )
 }
-function ModalApprouver({ demande, onClose, onDone }) {
-  // 🌟 FIX : On a retiré la date d'octroi d'ici
-  const [form, setForm] = useState({ 
-    montant_accorde: demande.montant_demande, 
-    nb_echeances: demande.duree_demandee || 12, 
-    taux: '0.1200', 
-    grace: 0, 
-    commentaire: '' 
-  })
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
-  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
-  
-  const save = async () => {
-    setSaving(true); setErr('')
-    try { 
-      await demandesApi.approuver(demande.id, form)
-      onDone() 
-    }
-    catch (e) { setErr(e.response?.data?.message || 'Erreur.') }
-    finally { setSaving(false) }
+
+// ─── AssistantAnalyse ──────────────────────────────────────────
+function AssistantAnalyse({ demande }) {
+  const [messages, setMessages]         = useState([])
+  const [input, setInput]               = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [analyseDone, setAnalyseDone]   = useState(false)
+  const bottomRef                       = useRef(null)
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  useEffect(() => { if (demande && !analyseDone) lancerAnalyse() }, [demande])
+
+  const addMsg = (role, text, isSystem = false) =>
+    setMessages(prev => [...prev, { id: Date.now() + Math.random(), role, text, isSystem }])
+
+  const lancerAnalyse = async () => {
+    setLoading(true); setAnalyseDone(true)
+    addMsg('bot', '🔍 Analyse du dossier en cours…', true)
+    try {
+      const res = await assistantApi.analyser(demande.id)
+      setMessages(prev => prev.filter(m => !m.isSystem))
+      addMsg('bot', res.data.message)
+    } catch {
+      setMessages(prev => prev.filter(m => !m.isSystem))
+      addMsg('bot', "❌ Erreur lors de l'analyse. Réessayez.")
+    } finally { setLoading(false) }
   }
 
+  const handleSend = async () => {
+    if (!input.trim() || loading) return
+    const question = input.trim()
+    setInput('')
+    addMsg('user', question)
+    setLoading(true)
+    try {
+      const res = await assistantApi.chat(demande.id, {
+        message: question,
+        history: messages.filter(m => !m.isSystem).map(m => ({
+          role: m.role === 'bot' ? 'assistant' : 'user',
+          content: m.text,
+        })),
+      })
+      addMsg('bot', res.data.message)
+    } catch {
+      addMsg('bot', '❌ Erreur de communication.')
+    } finally { setLoading(false) }
+  }
+
+  const QUICK = [
+    'Quel montant maximum recommandes-tu ?',
+    'Quel taux appliquer ?',
+    'Le garant est-il suffisant ?',
+    'Quels sont les risques ?',
+    'Résume ta recommandation.',
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="p-3 bg-surface-50 rounded-xl border border-surface-100 grid grid-cols-2 gap-2 text-xs">
-        <div><span className="text-surface-800/50">Client:</span> <strong className="font-semibold">{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong></div>
-        <div><span className="text-surface-800/50">Demandé:</span> <strong className="font-semibold">{formatMontant(demande.montant_demande)} ({demande.duree_demandee} mois)</strong></div>
-      </div>
-      
-      {demande.score_risque != null && (
-        <div className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium ${demande.score_risque >= 50 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-          <Shield size={14} /> Score centrale des risques : {demande.score_risque}/100
+    <div className="flex flex-col h-full bg-white rounded-xl border border-surface-100 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-brand-600 to-brand-700 text-white">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"><Bot size={13} /></div>
+          <div>
+            <p className="text-xs font-bold leading-none">Assistant Risque IA</p>
+            <p className="text-[10px] text-white/60">Claude AI</p>
+          </div>
         </div>
-      )}
-      
-      <ErrorAlert message={err} />
-      
-      <div className="grid grid-cols-2 gap-3">
-        <div><label className="label">Montant accordé (MAD)</label><input className="input font-semibold" type="number" value={form.montant_accorde} onChange={set('montant_accorde')} /></div>
-        <div><label className="label">Nb d'échéances validées</label><input className="input" type="number" value={form.nb_echeances} onChange={set('nb_echeances')} /></div>
-        <div><label className="label">Taux annuel proposé</label><input className="input font-mono" type="number" step="0.0001" value={form.taux} onChange={set('taux')} /></div>
-        <div><label className="label">Période de grâce (mois)</label><input className="input" type="number" min="0" value={form.grace} onChange={set('grace')} /></div>
+        <button onClick={() => { setMessages([]); setAnalyseDone(false) }}
+          className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center">
+          <RefreshCw size={11} />
+        </button>
       </div>
-      
-      <div><label className="label">Commentaire de décision</label><textarea className="input h-16 resize-none" value={form.commentaire} onChange={set('commentaire')} placeholder="Avis favorable du comité..." /></div>
-      
-      <div className="flex justify-end gap-2">
-        <button className="btn-secondary" onClick={onClose}>Annuler</button>
-        <button className="btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner className="w-4 h-4" /> : <ThumbsUp size={14} />} Valider en Comité</button>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-surface-50/40 min-h-[200px] max-h-[260px]">
+        {messages.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center h-full gap-2 py-6">
+            <Sparkles size={20} className="text-brand-400" />
+            <p className="text-[11px] text-surface-400 text-center">Analyse automatique du dossier en cours…</p>
+          </div>
+        )}
+        {messages.map(m => (
+          <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {m.role === 'bot' && (
+              <div className="w-5 h-5 bg-brand-100 rounded-full flex items-center justify-center mr-1.5 flex-shrink-0 mt-0.5">
+                <Bot size={10} className="text-brand-600" />
+              </div>
+            )}
+            <div className={`max-w-[88%] px-3 py-2 rounded-xl text-[11px] leading-relaxed whitespace-pre-wrap
+              ${m.role === 'user'  ? 'bg-brand-600 text-white rounded-br-sm'
+              : m.isSystem         ? 'bg-surface-100 text-surface-400 italic text-[10px]'
+                                   : 'bg-white border border-surface-100 text-surface-800 shadow-sm rounded-bl-sm'}`}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="w-5 h-5 bg-brand-100 rounded-full flex items-center justify-center mr-1.5">
+              <Bot size={10} className="text-brand-600" />
+            </div>
+            <div className="bg-white border border-surface-100 rounded-xl rounded-bl-sm px-3 py-2 shadow-sm">
+              <div className="flex gap-1 items-center h-3.5">
+                {[0, 150, 300].map(d => (
+                  <span key={d} className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Questions rapides */}
+      <div className="px-2.5 py-2 border-t border-surface-100 bg-white">
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {QUICK.map((q, i) => (
+            <button key={i} onClick={() => setInput(q)} disabled={loading}
+              className="flex-shrink-0 px-2 py-0.5 bg-brand-50 text-brand-700 text-[10px] font-medium rounded-full border border-brand-100 hover:bg-brand-100 disabled:opacity-40 whitespace-nowrap">
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Saisie */}
+      <div className="px-2.5 py-2 border-t border-surface-100 bg-white">
+        <div className="flex items-center gap-1.5">
+          <input type="text" value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder="Posez une question sur ce dossier…" disabled={loading}
+            className="flex-1 text-[11px] bg-surface-50 border border-surface-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors disabled:opacity-50" />
+          <button onClick={handleSend} disabled={!input.trim() || loading}
+            className="w-7 h-7 bg-brand-600 hover:bg-brand-700 text-white rounded-xl flex items-center justify-center disabled:opacity-40 flex-shrink-0">
+            <Send size={12} />
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
+// ─── ModalApprouver (avec assistant IA) ───────────────────────
+function ModalApprouver({ demande, onClose, onDone }) {
+  const [form, setForm] = useState({
+    montant_accorde: demande.montant_demande,
+    nb_echeances:    demande.duree_demandee || 12,
+    taux:            '0.1200',
+    grace:           0,
+    commentaire:     '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const save = async () => {
+    setSaving(true); setErr('')
+    try { await demandesApi.approuver(demande.id, form); onDone() }
+    catch (e) { setErr(e.response?.data?.message || 'Erreur.') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-5">
+
+      {/* Colonne gauche : formulaire */}
+      <div className="space-y-4">
+        <div className="p-3 bg-surface-50 rounded-xl border border-surface-100 grid grid-cols-2 gap-2 text-xs">
+          <div><span className="text-surface-800/50">Client :</span> <strong>{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong></div>
+          <div><span className="text-surface-800/50">Demandé :</span> <strong>{formatMontant(demande.montant_demande)} ({demande.duree_demandee} mois)</strong></div>
+        </div>
+
+        {demande.score_risque != null && (
+          <div className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium
+            ${demande.score_risque >= 50 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+            <Shield size={13} /> Score centrale des risques : <strong>{demande.score_risque}/100</strong>
+          </div>
+        )}
+
+        <ErrorAlert message={err} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label">Montant accordé (MAD)</label><input className="input font-semibold" type="number" value={form.montant_accorde} onChange={set('montant_accorde')} /></div>
+          <div><label className="label">Nb d'échéances</label><input className="input" type="number" value={form.nb_echeances} onChange={set('nb_echeances')} /></div>
+          <div><label className="label">Taux annuel</label><input className="input font-mono" type="number" step="0.0001" value={form.taux} onChange={set('taux')} /></div>
+          <div><label className="label">Période de grâce (mois)</label><input className="input" type="number" min="0" value={form.grace} onChange={set('grace')} /></div>
+        </div>
+
+        <div>
+          <label className="label">Commentaire de décision</label>
+          <textarea className="input h-16 resize-none" value={form.commentaire} onChange={set('commentaire')} placeholder="Avis favorable du comité..." />
+        </div>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn-secondary" onClick={onClose}>Annuler</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
+            {saving ? <Spinner className="w-4 h-4" /> : <ThumbsUp size={14} />} Valider en Comité
+          </button>
+        </div>
+      </div>
+
+      {/* Colonne droite : assistant IA */}
+      <div className="flex flex-col">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-surface-800/40 mb-2">Assistant d'analyse IA</p>
+        <AssistantAnalyse demande={demande} />
+      </div>
+    </div>
+  )
+}
+
+// ─── ModalRejeter ──────────────────────────────────────────────
 function ModalRejeter({ open, onClose, onConfirm, loading }) {
   const [motif, setMotif] = useState('')
   return (
     <Modal open={open} onClose={onClose} title="Rejeter la demande" size="sm">
       <div className="space-y-4">
-        <div><label className="label">Motif de rejet *</label>
-          <textarea className="input h-24 resize-none" value={motif} onChange={e => setMotif(e.target.value)} placeholder="Capacité d'endettement insuffisante, garanties fragiles…" />
+        <div>
+          <label className="label">Motif de rejet *</label>
+          <textarea className="input h-24 resize-none" value={motif} onChange={e => setMotif(e.target.value)} placeholder="Capacité d'endettement insuffisante…" />
         </div>
         <div className="flex justify-end gap-2">
           <button className="btn-secondary" onClick={onClose}>Annuler</button>
@@ -280,94 +420,69 @@ function ModalRejeter({ open, onClose, onConfirm, loading }) {
       </div>
     </Modal>
   )
-}function ModalDecaisser({ demande, onClose, onDone }) {
-  // 🌟 FIX : L'agent hérite des choix du manager (depuis l'objet demande)
-  // Il saisit uniquement la date de début (date de remise des fonds)
+}
+
+// ─── ModalDecaisser ────────────────────────────────────────────
+function ModalDecaisser({ demande, onClose, onDone }) {
   const [form, setForm] = useState({
     montant_accorde: demande.montant_accorde || demande.montant_demande,
-    taux_interet: demande.taux || '0.1200',
-    periode_grace: demande.grace || 0,
-    duree_pret: demande.nb_echeances || demande.duree_demandee || 12,
-    date_debut: new Date().toISOString().split('T')[0] // Saisie libre pour l'agent
+    taux_interet:    demande.taux || '0.1200',
+    periode_grace:   demande.grace || 0,
+    duree_pret:      demande.nb_echeances || demande.duree_demandee || 12,
+    date_debut:      new Date().toISOString().split('T')[0],
   })
-  
   const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
+  const [err, setErr]       = useState('')
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
-  
+
   const save = async () => {
     setSaving(true); setErr('')
     try {
       const { pretsApi } = await import('../../api/services')
       await pretsApi.create({ demande_credit_id: demande.id, ...form })
       onDone()
-    } catch (e) { 
-      setErr(e.response?.data?.message || 'Erreur au décaissement.') 
-    } finally { 
-      setSaving(false) 
-    }
+    } catch (e) {
+      setErr(e.response?.data?.message || 'Erreur au décaissement.')
+    } finally { setSaving(false) }
   }
 
   return (
     <div className="space-y-4">
-      <div className="p-3.5 bg-purple-50 rounded-xl border border-purple-100 space-y-1 text-xs text-purple-950">
-        <p className="font-bold flex items-center gap-1.5 text-purple-800 text-sm">
+      <div className="p-3.5 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-950">
+        <p className="font-bold flex items-center gap-1.5 text-purple-800 text-sm mb-1">
           <Banknote size={16} /> Remise des fonds & Activation du Prêt
         </p>
-        <p className="text-purple-900/80">
-          Client : <strong className="font-semibold text-purple-950">{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong>
-        </p>
+        <p>Client : <strong>{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</strong></p>
       </div>
-
       <ErrorAlert message={err} />
-      
       <div className="grid grid-cols-2 gap-3">
-        {/* Date d'effet : CHAMP ACTIF POUR L'AGENT */}
         <div className="col-span-2">
-          <label className="label text-brand-600 font-bold">Date de remise des fonds (Date d'effet) *</label>
-          <input className="input border-brand-300 bg-brand-50/20 text-sm" type="date" value={form.date_debut} onChange={set('date_debut')} required />
-          <p className="text-[10px] text-brand-600/70 mt-1">Détermine la date de génération de la première mensualité.</p>
+          <label className="label text-brand-600 font-bold">Date de remise des fonds *</label>
+          <input className="input border-brand-300 bg-brand-50/20" type="date" value={form.date_debut} onChange={set('date_debut')} required />
+          <p className="text-[10px] text-brand-600/70 mt-1">Détermine la date de la première mensualité.</p>
         </div>
-
-        <hr className="col-span-2 my-1 border-surface-100" />
+        <hr className="col-span-2 border-surface-100" />
         <p className="col-span-2 text-[10px] uppercase font-bold tracking-wider text-surface-400">Conditions approuvées (Lecture seule)</p>
-
-        {/* Champs verrouillés en ReadOnly pour préserver la décision du Manager */}
-        <div>
-          <label className="label text-surface-400">Montant accordé (MAD)</label>
-          <input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.montant_accorde} readOnly />
-        </div>
-        
-        <div>
-          <label className="label text-surface-400">Nombre d'échéances</label>
-          <input className="input bg-surface-50 text-surface-500" type="number" value={form.duree_pret} readOnly />
-        </div>
-
-        <div>
-          <label className="label text-surface-400">Taux d'intérêt annuel</label>
-          <input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.taux_interet} readOnly />
-        </div>
-
-        <div>
-          <label className="label text-surface-400">Mois de grâce</label>
-          <input className="input bg-surface-50 text-surface-500" type="number" value={form.periode_grace} readOnly />
-        </div>
+        <div><label className="label text-surface-400">Montant accordé (MAD)</label><input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.montant_accorde} readOnly /></div>
+        <div><label className="label text-surface-400">Nombre d'échéances</label><input className="input bg-surface-50 text-surface-500" type="number" value={form.duree_pret} readOnly /></div>
+        <div><label className="label text-surface-400">Taux d'intérêt annuel</label><input className="input bg-surface-50 text-surface-500 font-mono" type="number" value={form.taux_interet} readOnly /></div>
+        <div><label className="label text-surface-400">Mois de grâce</label><input className="input bg-surface-50 text-surface-500" type="number" value={form.periode_grace} readOnly /></div>
       </div>
-
       <div className="flex justify-end gap-2 pt-2 border-t border-surface-100">
         <button className="btn-secondary" onClick={onClose} disabled={saving}>Annuler</button>
-        <button className="btn-primary bg-purple-600 hover:bg-purple-700 text-white" onClick={save} disabled={saving}>
-          {saving ? <Spinner className="w-4 h-4" /> : <ShieldCheck size={14} />} 
-          {saving ? 'Création de l\'échéancier...' : 'Confirmer le Décaissement'}
+        <button className="btn-primary bg-purple-600 hover:bg-purple-700" onClick={save} disabled={saving}>
+          {saving ? <Spinner className="w-4 h-4" /> : <ShieldCheck size={14} />}
+          {saving ? "Création de l'échéancier..." : 'Confirmer le Décaissement'}
         </button>
       </div>
     </div>
   )
 }
-// ─── 4. LIGNE DU TABLEAU (Expansible & Contextuelle) ─────────────────────────────
+
+// ─── DemandeLigne ──────────────────────────────────────────────
 function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser }) {
-  const navigate = useNavigate()
-  const wf = WORKFLOW[demande.statut_demande] ?? {}
+  const navigate  = useNavigate()
+  const wf        = WORKFLOW[demande.statut_demande] ?? {}
   const isManager = role === 'MANAGER'
 
   return (
@@ -378,72 +493,59 @@ function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser 
           <p className="font-medium text-surface-900">{demande.client?.personne?.prenom} {demande.client?.personne?.nom}</p>
           <p className="text-[10px] text-surface-800/40">{demande.client?.numero_piece_identite ?? '—'}</p>
         </td>
-        <td className="td py-3 px-4 text-xs text-surface-800/80">{demande.produit_credit?.type_produit ?? '—'}</td>
-        <td className="td py-3 px-4 font-mono text-xs text-surface-900">{formatMontant(demande.montant_demande)}</td>
-        <td className="td py-3 px-4 text-xs text-surface-800/80">{demande.duree_demandee} mois</td>
-        <td className="td py-3 px-4 text-xs text-surface-800/80">{formatDate(demande.date_soumission)}</td>
+        <td className="td py-3 px-4 text-xs">{demande.produit_credit?.type_produit ?? '—'}</td>
+        <td className="td py-3 px-4 font-mono text-xs">{formatMontant(demande.montant_demande)}</td>
+        <td className="td py-3 px-4 text-xs">{demande.duree_demandee} mois</td>
+        <td className="td py-3 px-4 text-xs">{formatDate(demande.date_soumission)}</td>
         <td className="td py-3 px-4">
-          <span className={`badge ${wf.color ?? 'bg-surface-100 text-surface-800'}`}>
-            {wf.icon && <wf.icon size={10} className="mr-1" />} {wf.label ?? demande.statut_demande}
-          </span>
+          <span className={`badge ${wf.color ?? 'bg-surface-100 text-surface-800'}`}>{wf.label ?? demande.statut_demande}</span>
         </td>
         <td className="td py-3 px-4" onClick={e => e.stopPropagation()}>
-  <div className="flex items-center gap-1 justify-end">
-    {/* Bouton Voir détails accessible par tout le monde */}
-    <button onClick={() => navigate(`/demandes/${demande.id}`)} className="p-1.5 rounded-lg hover:bg-surface-100" title="Voir détails complets"><Eye size={14} /></button>
-    
-    {/* 💼 ACTIONS DU CONSEILLER / AGENT */}
-    {!isManager && (
-      <>
-        {/* Si la demande est en attente, l'agent peut modifier/supprimer */}
-        {demande.statut_demande === 'EN_ATTENTE' && (
-          <>
-            <button onClick={() => onAction('edit', demande)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600" title="Modifier"><Pencil size={14} /></button>
-            <button onClick={() => onAction('delete', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Supprimer"><Trash2 size={14} /></button>
-          </>
-        )}
-        
-        {/* 🌟 FIX : C'est l'AGENT qui voit le bouton Décaisser quand le statut est APPROUVEE */}
-        {demande.statut_demande === 'APPROUVEE' && (
-          <button onClick={() => onAction('decaisser', demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
-             Remettre les fonds (Décaisser)
-          </button>
-        )}
-      </>
-    )}
+          <div className="flex items-center gap-1 justify-end">
+            <button onClick={() => navigate(`/demandes/${demande.id}`)} className="p-1.5 rounded-lg hover:bg-surface-100" title="Voir"><Eye size={14} /></button>
 
-    {/* 👔 ACTIONS DU MANAGER */}
-    {isManager && (
-      <>
-        {/* Étape 1 : Le manager prend en charge le dossier */}
-        {demande.statut_demande === 'EN_ATTENTE' && (
-          <button onClick={() => onAnalyser(demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
-            <ClipboardList size={10}/> Prendre en charge & Analyser
-          </button>
-        )}
-        
-        {/* Étape 2 : Le manager étudie et décide en comité */}
-        {demande.statut_demande === 'EN_COURS_ANALYSE' && (
-          <>
-            <button onClick={() => onAction('approuver', demande)} className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600" title="Passer en comité"><CheckCircle size={14} /></button>
-            <button onClick={() => onAction('rejeter', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Rejeter"><XCircle size={14} /></button>
-          </>
-        )}
-        
-        {/* Étape 3 : Si besoin, le manager peut toujours annuler un dossier approuvé mais non encore décaissé */}
-        {demande.statut_demande === 'APPROUVEE' && (
-          <button onClick={() => onAction('annuler', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600" title="Annuler la demande d'office"><X size={14} /></button>
-        )}
-      </>
-    )}
+            {!isManager && (
+              <>
+                {demande.statut_demande === 'EN_ATTENTE' && (
+                  <>
+                    <button onClick={() => onAction('edit', demande)} className="p-1.5 rounded-lg hover:bg-amber-50 hover:text-amber-600"><Pencil size={14} /></button>
+                    <button onClick={() => onAction('delete', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button>
+                  </>
+                )}
+                {demande.statut_demande === 'APPROUVEE' && (
+                  <button onClick={() => onAction('decaisser', demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100">
+                    Remettre les fonds
+                  </button>
+                )}
+              </>
+            )}
 
-    {/* Bouton de déploiement de la ligne */}
-    <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-surface-100 text-surface-800/30">
-      {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-    </button>
-  </div>
-</td>
+            {isManager && (
+              <>
+                {demande.statut_demande === 'EN_ATTENTE' && (
+                  <button onClick={() => onAnalyser(demande)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100">
+                    <ClipboardList size={10} /> Prendre en charge
+                  </button>
+                )}
+                {demande.statut_demande === 'EN_COURS_ANALYSE' && (
+                  <>
+                    <button onClick={() => onAction('approuver', demande)} className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600"><CheckCircle size={14} /></button>
+                    <button onClick={() => onAction('rejeter', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600"><XCircle size={14} /></button>
+                  </>
+                )}
+                {demande.statut_demande === 'APPROUVEE' && (
+                  <button onClick={() => onAction('annuler', demande)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600"><X size={14} /></button>
+                )}
+              </>
+            )}
+
+            <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-surface-100 text-surface-800/30">
+              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          </div>
+        </td>
       </tr>
+
       {expanded && (
         <tr>
           <td colSpan={8} className="bg-brand-50/10 border-b border-surface-100 px-6 py-3">
@@ -454,11 +556,11 @@ function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser 
               </div>
               <div className="flex-1 grid grid-cols-3 gap-x-6 gap-y-1.5">
                 {[
-                  ['Objet du Prêt', demande.objet_pret],
+                  ['Objet du Prêt',     demande.objet_pret],
                   ['Garantie Physique', demande.garantie ?? '—'],
-                  ['Caution / Garant', demande.garant ? `${demande.garant.prenom} ${demande.garant.nom}` : '—'],
-                  ['Date Décision', formatDate(demande.date_decision)],
-                  ['Motif de Rejet', demande.motif_rejet ?? '—']
+                  ['Caution / Garant',  demande.garant ? `${demande.garant.prenom} ${demande.garant.nom}` : '—'],
+                  ['Date Décision',     formatDate(demande.date_decision)],
+                  ['Motif de Rejet',    demande.motif_rejet ?? '—'],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between text-xs border-b border-surface-100/60 pb-1">
                     <span className="text-surface-800/40">{k}</span>
@@ -474,38 +576,33 @@ function DemandeLigne({ demande, onAction, expanded, onToggle, role, onAnalyser 
   )
 }
 
-// ─── 5. PAGE GLOBALE UNIFIEE ───────────────────────────────────────────────────
+// ─── PAGE PRINCIPALE ───────────────────────────────────────────
 export default function DemandesPage() {
-  const { user } = useAuth()
-  const [page, setPage] = useState(1)
-  const [statut, setStatut] = useState('')
-  const [search, setSearch] = useState('')
-  const [modal, setModal] = useState(null)     // 'create', 'edit', 'rejeter', 'approuver', 'decaisser'
-  const [selected, setSelected] = useState(null) 
+  const { user }    = useAuth()
+  const [page, setPage]       = useState(1)
+  const [statut, setStatut]   = useState('')
+  const [search, setSearch]   = useState('')
+  const [modal, setModal]     = useState(null)
+  const [selected, setSelected] = useState(null)
   const [expanded, setExpanded] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]   = useState(false)
   const [saveErr, setSaveErr] = useState('')
+  const isManager             = user?.role === 'MANAGER'
 
-  const isManager = user?.role === 'MANAGER'
-
-  const fetcher = useCallback(() => 
-    demandesApi.list({ page, statut: statut || undefined, search: search || undefined }), 
+  const fetcher = useCallback(() =>
+    demandesApi.list({ page, statut: statut || undefined, search: search || undefined }),
     [page, statut, search]
   )
   const { data, loading, error, execute: refresh } = useApi(fetcher, [page, statut, search])
   const demandes = data?.data ?? []
 
   const closeModal = () => { setModal(null); setSaveErr(''); setSelected(null) }
-  const onDone = () => { closeModal(); refresh() }
+  const onDone     = () => { closeModal(); refresh() }
 
   const handleSave = async (form) => {
     setSaving(true); setSaveErr('')
     try {
-      if (modal === 'edit') {
-        await demandesApi.update(selected.id, form)
-      } else {
-        await demandesApi.create(form)
-      }
+      modal === 'edit' ? await demandesApi.update(selected.id, form) : await demandesApi.create(form)
       onDone()
     } catch (e) {
       setSaveErr(e.response?.data?.message || 'Erreur lors de la soumission.')
@@ -514,44 +611,29 @@ export default function DemandesPage() {
 
   const handleActionClick = (actionId, demande) => {
     setSelected(demande)
-    if (actionId === 'delete') {
-      handleDelete(demande.id)
-    } else {
-      setModal(actionId)
-    }
+    if (actionId === 'delete') { handleDelete(demande.id) }
+    else { setModal(actionId) }
   }
 
   const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette demande ?')) {
-      try { await demandesApi.delete(id); refresh() } 
-      catch (e) { alert(e.response?.data?.message || 'Erreur de suppression.') }
-    }
+    if (!window.confirm('Supprimer cette demande ?')) return
+    try { await demandesApi.delete(id); refresh() }
+    catch (e) { alert(e.response?.data?.message || 'Erreur.') }
   }
 
-  // L'analyse passe directement le statut à EN_COURS_ANALYSE sans changer d'employe_id
   const handleAnalyserDirect = async (demande) => {
     if (!window.confirm(`Passer le dossier #${demande.id} en cours d'analyse ?`)) return
-    try { 
-      await demandesApi.affecter(demande.id, { employe_id: user?.id }) 
-      refresh()
-    } catch (e) {
-      alert(e.response?.data?.message || "Impossible de lancer l'analyse.")
-    }
+    try { await demandesApi.affecter(demande.id, { employe_id: user?.id }); refresh() }
+    catch (e) { alert(e.response?.data?.message || "Impossible de lancer l'analyse.") }
   }
 
   const handleRejeter = async (motif) => {
     setSaving(true)
-    try { await demandesApi.rejeter(selected.id, { motif_rejet: motif }); onDone() } 
+    try { await demandesApi.rejeter(selected.id, { motif_rejet: motif }); onDone() }
     catch {} finally { setSaving(false) }
   }
 
-  const handleAnnuler = async () => {
-    setSaving(true)
-    try { await demandesApi.rejeter(selected.id, { motif_rejet: 'Annulation manuelle manager' }); onDone() } 
-    catch {} finally { setSaving(false) }
-  }
-
-  const STATUTS_OPTS = ['', 'EN_ATTENTE', 'EN_COURS_ANALYSE', 'APPROUVEE', 'REJETEE', 'ANNULEE', 'DECAISSEE']
+  const STATUTS_OPTS = ['', 'EN_ATTENTE', 'EN_COURS_ANALYSE', 'APPROUVEE', 'REJETEE',  'DECAISSEE']
 
   return (
     <div className="space-y-5">
@@ -561,41 +643,33 @@ export default function DemandesPage() {
         action={!isManager && <button className="btn-primary" onClick={() => setModal('create')}><Plus size={16} /> Nouvelle demande</button>}
       />
 
-      {/* Bloc indicateurs KPI */}
-     
-
-      {/* Zone de Filtrage et Recherche */}
       <div className="card p-0">
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-surface-100">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-800/40" />
-            <input className="input pl-9 py-2 text-sm" placeholder="Rechercher client, ID..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+            <input className="input pl-9 py-2 text-sm" placeholder="Rechercher client, ID..." value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1) }} />
           </div>
           <select className="input w-48 py-2 text-sm" value={statut} onChange={e => { setStatut(e.target.value); setPage(1) }}>
             {STATUTS_OPTS.map(s => <option key={s} value={s}>{s ? s.replace(/_/g, ' ') : 'Tous les statuts'}</option>)}
           </select>
         </div>
 
-        {loading ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
-        : error ? <div className="p-5"><ErrorAlert message={error} /></div>
+        {loading  ? <div className="flex justify-center py-16"><Spinner className="w-6 h-6" /></div>
+        : error   ? <div className="p-5"><ErrorAlert message={error} /></div>
         : demandes.length === 0 ? <Empty message="Aucune demande trouvée." />
         : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead className="bg-surface-50 border-b border-surface-100">
-                <tr>
-                  {['ID', 'Client', 'Produit', 'Montant', 'Durée', 'Soumission', 'Statut', ''].map(h => (
-                    <th key={h} className="th py-3 px-4 text-left font-semibold text-xs tracking-wider text-surface-800/60">{h}</th>
-                  ))}
-                </tr>
+                <tr>{['ID','Client','Produit','Montant','Durée','Soumission','Statut',''].map(h =>
+                  <th key={h} className="th py-3 px-4 text-left text-xs font-semibold tracking-wider text-surface-800/60">{h}</th>
+                )}</tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {demandes.map(d => (
-                  <DemandeLigne 
-                    key={d.id} 
-                    demande={d} 
-                    role={user?.role} 
-                    expanded={expanded === d.id} 
+                  <DemandeLigne key={d.id} demande={d} role={user?.role}
+                    expanded={expanded === d.id}
                     onToggle={() => setExpanded(expanded === d.id ? null : d.id)}
                     onAction={handleActionClick}
                     onAnalyser={handleAnalyserDirect}
@@ -605,16 +679,18 @@ export default function DemandesPage() {
             </table>
           </div>
         )}
-        <div className="px-5 py-4 border-t border-surface-100"><Pagination meta={data?.meta} onPageChange={setPage} /></div>
+        <div className="px-5 py-4 border-t border-surface-100">
+          <Pagination meta={data?.meta} onPageChange={setPage} />
+        </div>
       </div>
 
-      {/* MODAL UNIQUE AGENT : CREATION & EDITION */}
-      <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal} title={modal === 'edit' ? "Modifier la demande de crédit" : "Nouvelle demande de crédit"} size="lg">
+      {/* Modals */}
+      <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal}
+        title={modal === 'edit' ? 'Modifier la demande' : 'Nouvelle demande de crédit'} size="lg">
         <DemandeForm onSave={handleSave} loading={saving} error={saveErr} initialData={selected} />
       </Modal>
 
-      {/* MODALS DÉDIÉS MANAGER */}
-      <Modal open={modal === 'approuver'} onClose={closeModal} title="Comité d'approbation financière" size="lg">
+      <Modal open={modal === 'approuver'} onClose={closeModal} title="Comité d'approbation financière" size="xl">
         {selected && <ModalApprouver demande={selected} onClose={closeModal} onDone={onDone} />}
       </Modal>
 
