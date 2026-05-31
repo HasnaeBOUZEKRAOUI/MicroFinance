@@ -20,7 +20,7 @@ class RecalculerPenalitesCommand extends Command
             ->where('date_echeance', '<', now())
             ->get();
 
-        $this->info("🔄 {$echeances->count()} échéances à traiter...");
+        $this->info(" {$echeances->count()} échéances à traiter...");
 
         $updated = 0;
         foreach ($echeances as $echeance) {

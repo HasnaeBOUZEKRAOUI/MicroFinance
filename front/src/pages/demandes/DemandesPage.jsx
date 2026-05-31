@@ -20,7 +20,6 @@ const WORKFLOW = {
   EN_COURS_ANALYSE: { label: 'En analyse',      color: 'bg-blue-100 text-blue-800' },
   APPROUVEE:        { label: 'Approuvée',       color: 'bg-emerald-100 text-emerald-800' },
   REJETEE:          { label: 'Rejetée',         color: 'bg-red-100 text-red-800'},
-  ANNULEE:          { label: 'Annulée',         color: 'bg-surface-100 text-surface-800' },
   DECAISSEE:        { label: 'Décaissée',       color: 'bg-purple-100 text-purple-800' },
 }
 
@@ -34,7 +33,7 @@ const ETAPE_IDX = { EN_ATTENTE: 0, EN_COURS_ANALYSE: 1, APPROUVEE: 2, DECAISSEE:
 
 function WorkflowBar({ statut }) {
   const cur = ETAPE_IDX[statut] ?? 0
-  const rej = statut === 'REJETEE' || statut === 'ANNULEE'
+  const rej = statut === 'REJETEE' 
   return (
     <div className="flex items-center gap-0 flex-wrap">
       {ETAPES.map((e, i) => (
