@@ -257,7 +257,6 @@ function AssistantAnalyse({ demande }) {
           <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"><Bot size={13} /></div>
           <div>
             <p className="text-xs font-bold leading-none">Assistant Risque IA</p>
-            <p className="text-[10px] text-white/60">Claude AI</p>
           </div>
         </div>
         <button onClick={() => { setMessages([]); setAnalyseDone(false) }}
@@ -389,7 +388,7 @@ function ModalApprouver({ demande, onClose, onDone }) {
         <div className="flex justify-end gap-2 pt-1">
           <button className="btn-secondary" onClick={onClose}>Annuler</button>
           <button className="btn-primary" onClick={save} disabled={saving}>
-            {saving ? <Spinner className="w-4 h-4" /> : <ThumbsUp size={14} />} Valider en Comité
+             Valider en Comité
           </button>
         </div>
       </div>
