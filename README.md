@@ -57,13 +57,14 @@ Microfiance Pro permet :
 - Suivi des remboursements
 
 ## Manager
+- Analyse de demande avec Assistant Risque IA
 - Validation des demandes de crédit
-- Consultation des statistiques
+- Voir les produits crédits
 
 ## Administrateur
 - Gestion des utilisateurs
 - Gestion des rôles
-- Configuration du système
+- Consultation des statistiques
 
 ---
 
