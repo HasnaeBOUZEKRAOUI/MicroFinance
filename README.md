@@ -19,7 +19,7 @@ Cet application est une solution logicielle conçue pour optimiser le cycle de v
 
 Le projet vise à moderniser les institutions de microfinance en automatisant les processus de gestion des crédits et du suivi client.
 
-MicroTrack permet :
+Microfiance Pro permet :
 - La gestion des clients
 - Le suivi des demandes de crédit
 - Le contrôle des remboursements
